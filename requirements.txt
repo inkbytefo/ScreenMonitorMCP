@@ -1,0 +1,22 @@
+fastapi
+uvicorn
+mss
+Pillow
+python-multipart
+pygetwindow
+python-dotenv
+openai
+mcp[cli]
+# Real-time monitoring dependencies
+opencv-python
+numpy
+# UI Detection dependencies (for future phases)
+pytesseract
+easyocr
+pyautogui
+# Machine learning dependencies (for future phases)
+scikit-learn
+pandas
+# Logging and utilities
+structlog
+tenacity
