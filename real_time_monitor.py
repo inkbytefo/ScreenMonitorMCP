@@ -1,6 +1,6 @@
 """
 Real-Time Screen Monitoring System
-Devrimsel özellik: AI'ya sürekli görme yetisi kazandırma
+Revolutionary feature: Giving AI continuous vision capability
 """
 
 import asyncio
@@ -31,18 +31,18 @@ class ChangeEvent:
 
 @dataclass
 class MonitoringConfig:
-    """Real-time monitoring yapılandırması"""
+    """Real-time monitoring configuration"""
     fps: int = 2
-    change_threshold: float = 0.1  # %10 değişiklik eşiği
-    major_change_threshold: float = 0.3  # %30 büyük değişiklik
-    critical_change_threshold: float = 0.6  # %60 kritik değişiklik
+    change_threshold: float = 0.1  # 10% change threshold
+    major_change_threshold: float = 0.3  # 30% major change
+    critical_change_threshold: float = 0.6  # 60% critical change
     focus_regions: List[Dict] = field(default_factory=list)
     smart_detection: bool = True
     save_screenshots: bool = True
     max_history: int = 100
 
 class SmartChangeDetector:
-    """Akıllı değişiklik algılama sistemi"""
+    """Smart change detection system"""
     
     def __init__(self, config: MonitoringConfig):
         self.config = config
@@ -51,7 +51,7 @@ class SmartChangeDetector:
         self.change_patterns = []
         
     def detect_changes(self, current_frame: np.ndarray) -> ChangeEvent:
-        """Mevcut frame ile önceki frame arasındaki değişiklikleri algılar"""
+        """Detects changes between current frame and previous frame"""
         if self.previous_frame is None:
             self.previous_frame = current_frame.copy()
             return ChangeEvent(
@@ -68,17 +68,17 @@ class SmartChangeDetector:
         # Threshold uygula
         _, thresh = cv2.threshold(gray_diff, 30, 255, cv2.THRESH_BINARY)
         
-        # Değişiklik yüzdesini hesapla
+        # Calculate change percentage
         total_pixels = thresh.shape[0] * thresh.shape[1]
         changed_pixels = cv2.countNonZero(thresh)
         change_percentage = changed_pixels / total_pixels
-        
-        # Değişiklik bölgelerini bul
+
+        # Find change regions
         contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         affected_regions = []
         
         for contour in contours:
-            if cv2.contourArea(contour) > 100:  # Küçük değişiklikleri filtrele
+            if cv2.contourArea(contour) > 100:  # Filter small changes
                 x, y, w, h = cv2.boundingRect(contour)
                 affected_regions.append({
                     'x': int(x), 'y': int(y), 
@@ -86,10 +86,10 @@ class SmartChangeDetector:
                     'area': int(cv2.contourArea(contour))
                 })
         
-        # Değişiklik tipini belirle
+        # Determine change type
         change_type = self._classify_change(change_percentage, affected_regions)
-        
-        # Screenshot'ı base64'e çevir (eğer gerekirse)
+
+        # Convert screenshot to base64 (if needed)
         screenshot_base64 = None
         if self.config.save_screenshots and change_type != 'minor':
             screenshot_base64 = self._frame_to_base64(current_frame)
@@ -107,7 +107,7 @@ class SmartChangeDetector:
         )
     
     def _classify_change(self, change_percentage: float, regions: List[Dict]) -> str:
-        """Değişiklik tipini sınıflandırır"""
+        """Classifies change type"""
         if change_percentage >= self.config.critical_change_threshold:
             return 'critical'
         elif change_percentage >= self.config.major_change_threshold:
@@ -118,26 +118,26 @@ class SmartChangeDetector:
             return 'none'
     
     def _generate_description(self, change_type: str, regions: List[Dict]) -> str:
-        """Değişiklik için açıklama oluşturur"""
+        """Generates description for change"""
         if change_type == 'none':
-            return "Önemli değişiklik algılanmadı"
-        
+            return "No significant change detected"
+
         region_count = len(regions)
         if region_count == 0:
-            return f"{change_type.title()} değişiklik algılandı"
+            return f"{change_type.title()} change detected"
         elif region_count == 1:
-            return f"{change_type.title()} değişiklik algılandı (1 bölge)"
+            return f"{change_type.title()} change detected (1 region)"
         else:
-            return f"{change_type.title()} değişiklik algılandı ({region_count} bölge)"
+            return f"{change_type.title()} change detected ({region_count} regions)"
     
     def _frame_to_base64(self, frame: np.ndarray) -> str:
-        """Frame'i base64 string'e çevirir"""
+        """Converts frame to base64 string"""
         _, buffer = cv2.imencode('.png', frame)
         img_base64 = base64.b64encode(buffer).decode('utf-8')
         return img_base64
 
 class RealTimeMonitor:
-    """Real-time ekran izleme sistemi"""
+    """Real-time screen monitoring system"""
     
     def __init__(self, config: MonitoringConfig):
         self.config = config
@@ -154,24 +154,24 @@ class RealTimeMonitor:
         }
     
     def add_change_callback(self, callback: Callable[[ChangeEvent], None]):
-        """Değişiklik algılandığında çağrılacak callback ekler"""
+        """Adds callback to be called when change is detected"""
         self.change_callbacks.append(callback)
     
     def start_monitoring(self) -> Dict[str, Any]:
-        """Monitoring'i başlatır"""
+        """Starts monitoring"""
         if self.is_monitoring:
-            return {"status": "already_running", "message": "Monitoring zaten çalışıyor"}
-        
+            return {"status": "already_running", "message": "Monitoring is already running"}
+
         self.is_monitoring = True
         self.stats['start_time'] = datetime.now()
         self.monitor_thread = threading.Thread(target=self._monitor_loop, daemon=True)
         self.monitor_thread.start()
-        
-        logger.info("Real-time monitoring başlatıldı", fps=self.config.fps)
-        
+
+        logger.info("Real-time monitoring started", fps=self.config.fps)
+
         return {
             "status": "started",
-            "message": f"Real-time monitoring başlatıldı ({self.config.fps} FPS)",
+            "message": f"Real-time monitoring started ({self.config.fps} FPS)",
             "config": {
                 "fps": self.config.fps,
                 "change_threshold": self.config.change_threshold,
@@ -180,24 +180,24 @@ class RealTimeMonitor:
         }
     
     def stop_monitoring(self) -> Dict[str, Any]:
-        """Monitoring'i durdurur"""
+        """Stops monitoring"""
         if not self.is_monitoring:
-            return {"status": "not_running", "message": "Monitoring zaten durmuş"}
-        
+            return {"status": "not_running", "message": "Monitoring is already stopped"}
+
         self.is_monitoring = False
         if self.monitor_thread:
             self.monitor_thread.join(timeout=2.0)
-        
+
         duration = datetime.now() - self.stats['start_time']
-        
-        logger.info("Real-time monitoring durduruldu", 
+
+        logger.info("Real-time monitoring stopped",
                    duration=str(duration),
                    total_frames=self.stats['total_frames'],
                    changes_detected=self.stats['changes_detected'])
-        
+
         return {
             "status": "stopped",
-            "message": "Real-time monitoring durduruldu",
+            "message": "Real-time monitoring stopped",
             "stats": {
                 "duration": str(duration),
                 "total_frames": self.stats['total_frames'],
@@ -207,7 +207,7 @@ class RealTimeMonitor:
         }
     
     def get_status(self) -> Dict[str, Any]:
-        """Monitoring durumunu döndürür"""
+        """Returns monitoring status"""
         return {
             "is_monitoring": self.is_monitoring,
             "stats": self.stats.copy(),
@@ -218,28 +218,28 @@ class RealTimeMonitor:
                     "change_percentage": event.change_percentage,
                     "description": event.description
                 }
-                for event in self.event_history[-10:]  # Son 10 olay
+                for event in self.event_history[-10:]  # Last 10 events
             ]
         }
     
     def _monitor_loop(self):
-        """Ana monitoring döngüsü"""
+        """Main monitoring loop"""
         with mss.mss() as sct:
-            monitor = sct.monitors[0]  # Tüm ekranları yakala
-            
+            monitor = sct.monitors[0]  # Capture all screens
+
             while self.is_monitoring:
                 try:
                     start_time = time.time()
-                    
-                    # Ekran görüntüsü yakala
+
+                    # Capture screenshot
                     sct_img = sct.grab(monitor)
                     frame = np.array(sct_img)
                     frame = cv2.cvtColor(frame, cv2.COLOR_BGRA2BGR)
-                    
-                    # Değişiklikleri algıla
+
+                    # Detect changes
                     change_event = self.detector.detect_changes(frame)
                     
-                    # İstatistikleri güncelle
+                    # Update statistics
                     self.stats['total_frames'] += 1
                     if change_event.change_type != 'none':
                         self.stats['changes_detected'] += 1

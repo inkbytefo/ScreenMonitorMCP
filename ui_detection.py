@@ -32,7 +32,7 @@ logger = structlog.get_logger()
 
 @dataclass
 class UIElement:
-    """UI elementi temsil eder"""
+    """Represents a UI element"""
     element_type: str  # 'button', 'text_field', 'menu', 'text', 'image'
     coordinates: Tuple[int, int, int, int]  # (x, y, width, height)
     confidence: float
@@ -47,7 +47,7 @@ class UIElement:
 
 @dataclass
 class UIAnalysisResult:
-    """UI analiz sonucu"""
+    """UI analysis result"""
     elements: List[UIElement]
     screenshot_base64: str
     analysis_time: float
@@ -81,10 +81,10 @@ class OCREngine:
                 self._easyocr_initialized = False
     
     def extract_text(self, image: np.ndarray) -> List[Dict]:
-        """Görüntüden metin çıkarır"""
+        """Extracts text from image"""
         results = []
 
-        # OCR kütüphanelerinin durumunu kontrol et
+        # Check OCR libraries status
         if not TESSERACT_AVAILABLE and not EASYOCR_AVAILABLE:
             logger.warning("No OCR engines available. Install pytesseract or easyocr.")
             return []
@@ -102,8 +102,8 @@ class OCREngine:
                         ocr_results = self.easyocr_reader.readtext(image)
 
                         for (bbox, text, confidence) in ocr_results:
-                            if confidence > 0.5 and text.strip():  # Minimum güven eşiği ve boş olmayan metin
-                                # Bounding box koordinatlarını düzenle
+                            if confidence > 0.5 and text.strip():  # Minimum confidence threshold and non-empty text
+                                # Adjust bounding box coordinates
                                 x_coords = [point[0] for point in bbox]
                                 y_coords = [point[1] for point in bbox]
                                 x, y = int(min(x_coords)), int(min(y_coords))
@@ -166,20 +166,20 @@ class OCREngine:
         return results
 
 class UIElementDetector:
-    """UI element algılama sistemi"""
+    """UI element detection system"""
     
     def __init__(self):
         self.ocr_engine = OCREngine()
         
     def detect_buttons(self, image: np.ndarray) -> List[UIElement]:
-        """Butonları algılar"""
+        """Detects buttons"""
         elements = []
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-        
-        # Kenar algılama
+
+        # Edge detection
         edges = cv2.Canny(gray, 50, 150)
-        
-        # Konturları bul
+
+        # Find contours
         contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         
         for contour in contours:
@@ -205,27 +205,27 @@ class UIElementDetector:
         return elements
     
     def detect_text_fields(self, image: np.ndarray) -> List[UIElement]:
-        """Metin alanlarını algılar"""
+        """Detects text fields"""
         elements = []
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-        
-        # Morfolojik işlemler
+
+        # Morphological operations
         kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
         processed = cv2.morphologyEx(gray, cv2.MORPH_CLOSE, kernel)
-        
-        # Kenar algılama
+
+        # Edge detection
         edges = cv2.Canny(processed, 30, 100)
-        
-        # Konturları bul
+
+        # Find contours
         contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         
         for contour in contours:
             x, y, w, h = cv2.boundingRect(contour)
             
-            # Metin alanı benzeri boyut kontrolü
+            # Text field-like size check
             if 50 < w < 500 and 20 < h < 50:
                 aspect_ratio = w / h
-                if aspect_ratio > 3:  # Uzun ve dar
+                if aspect_ratio > 3:  # Long and narrow
                     elements.append(UIElement(
                         element_type="text_field",
                         coordinates=(x, y, w, h),
@@ -237,10 +237,10 @@ class UIElementDetector:
         return elements
     
     def analyze_screen(self, screenshot: Optional[np.ndarray] = None) -> UIAnalysisResult:
-        """Ekranı analiz eder ve UI elementlerini bulur"""
+        """Analyzes screen and finds UI elements"""
         start_time = time.time()
-        
-        # Screenshot al (eğer verilmemişse)
+
+        # Take screenshot (if not provided)
         if screenshot is None:
             with mss.mss() as sct:
                 monitor = sct.monitors[0]
@@ -254,13 +254,13 @@ class UIElementDetector:
         
         elements = []
         
-        # UI elementlerini algıla
+        # Detect UI elements
         try:
-            # Butonları algıla
+            # Detect buttons
             buttons = self.detect_buttons(screenshot)
             elements.extend(buttons)
-            
-            # Metin alanlarını algıla
+
+            # Detect text fields
             text_fields = self.detect_text_fields(screenshot)
             elements.extend(text_fields)
             
@@ -270,7 +270,7 @@ class UIElementDetector:
         except Exception as e:
             logger.error("UI element detection failed", error=str(e))
         
-        # OCR ile metinleri çıkar
+        # Extract texts with OCR
         ocr_method = "none"
         try:
             # OCR engine'i auto olarak ayarla ve başlat
@@ -311,16 +311,16 @@ class UIElementDetector:
         )
 
 class SmartClicker:
-    """Akıllı tıklama sistemi"""
+    """Smart clicking system"""
     
     def __init__(self):
         self.ui_detector = UIElementDetector()
-        # PyAutoGUI güvenlik ayarları
+        # PyAutoGUI security settings
         pyautogui.FAILSAFE = True
         pyautogui.PAUSE = 0.1
     
     def find_element_by_text(self, target_text: str, similarity_threshold: float = 0.6) -> Optional[UIElement]:
-        """Metne göre element bulur - geliştirilmiş algoritma"""
+        """Finds element by text - enhanced algorithm"""
         try:
             analysis = self.ui_detector.analyze_screen()
 
@@ -335,11 +335,11 @@ class SmartClicker:
             for element in analysis.elements:
                 score = 0
 
-                # 1. Metin içeriği ile eşleştirme
+                # 1. Text content matching
                 if element.text_content:
                     element_text_lower = element.text_content.lower()
 
-                    # Tam eşleşme
+                    # Exact match
                     if target_text_lower == element_text_lower:
                         score = 1.0
                     # İçerik kontrolü
@@ -401,9 +401,9 @@ class SmartClicker:
             return False
     
     def smart_click(self, description: str) -> Dict[str, Any]:
-        """Doğal dil açıklamasına göre akıllı tıklama"""
+        """Smart clicking based on natural language description"""
         try:
-            # Önce elementi bul
+            # First find the element
             element = self.find_element_by_text(description)
             
             if element:
@@ -435,17 +435,17 @@ _ui_detector: Optional[UIElementDetector] = None
 _smart_clicker: Optional[SmartClicker] = None
 
 def get_ui_detector() -> UIElementDetector:
-    """Global UI detector instance'ını döndürür"""
+    """Returns global UI detector instance"""
     global _ui_detector
     if _ui_detector is None:
         _ui_detector = UIElementDetector()
-        # OCR engine'i easyocr olarak ayarla
+        # Set OCR engine to easyocr
         _ui_detector.ocr_engine.preferred_engine = "easyocr"
         logger.info("UI Detector created with EasyOCR preference")
     return _ui_detector
 
 def get_smart_clicker() -> SmartClicker:
-    """Global smart clicker instance'ını döndürür"""
+    """Returns global smart clicker instance"""
     global _smart_clicker
     if _smart_clicker is None:
         _smart_clicker = SmartClicker()

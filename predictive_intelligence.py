@@ -1,6 +1,6 @@
 """
 Predictive Intelligence System
-Devrimsel özellik: AI'ya kullanıcı davranışlarını öğrenme ve gelecek tahminleri yapma yetisi
+Revolutionary feature: Gives AI the ability to learn user behaviors and make future predictions
 """
 
 import json
@@ -18,7 +18,7 @@ logger = structlog.get_logger()
 
 @dataclass
 class UserAction:
-    """Kullanıcı aksiyonu"""
+    """User action data structure"""
     timestamp: datetime
     action_type: str  # 'click', 'type', 'scroll', 'app_switch', 'window_change'
     target: str  # Element description or app name
@@ -28,7 +28,7 @@ class UserAction:
     window_title: Optional[str] = None
     
     def to_dict(self) -> Dict:
-        """Dictionary'ye çevir"""
+        """Convert to dictionary"""
         data = asdict(self)
         data['timestamp'] = self.timestamp.isoformat()
         return data
@@ -41,7 +41,7 @@ class UserAction:
 
 @dataclass
 class BehaviorPattern:
-    """Davranış kalıbı"""
+    """Behavior pattern data structure"""
     pattern_id: str
     pattern_type: str  # 'temporal', 'sequential', 'contextual'
     description: str
@@ -76,36 +76,36 @@ class Prediction:
     expires_at: datetime
     
     def is_expired(self) -> bool:
-        """Tahmin süresi dolmuş mu?"""
+        """Has the prediction expired?"""
         return datetime.now() > self.expires_at
 
 class PatternRecognizer:
-    """Kalıp tanıma sistemi"""
-    
+    """Pattern recognition system"""
+
     def __init__(self):
-        self.temporal_patterns = {}  # Zaman bazlı kalıplar
-        self.sequential_patterns = {}  # Sıralı kalıplar
-        self.contextual_patterns = {}  # Bağlamsal kalıplar
+        self.temporal_patterns = {}  # Time-based patterns
+        self.sequential_patterns = {}  # Sequential patterns
+        self.contextual_patterns = {}  # Contextual patterns
     
     def analyze_temporal_patterns(self, actions: List[UserAction]) -> List[BehaviorPattern]:
-        """Zaman bazlı kalıpları analiz eder"""
+        """Analyzes time-based patterns"""
         patterns = []
-        
-        # Saatlik kalıplar
+
+        # Hourly patterns
         hourly_actions = defaultdict(list)
         for action in actions:
             hour = action.timestamp.hour
             hourly_actions[hour].append(action)
-        
+
         for hour, hour_actions in hourly_actions.items():
-            if len(hour_actions) >= 3:  # En az 3 aksiyon
+            if len(hour_actions) >= 3:  # At least 3 actions
                 action_types = [a.action_type for a in hour_actions]
                 most_common = max(set(action_types), key=action_types.count)
                 
                 pattern = BehaviorPattern(
                     pattern_id=f"temporal_hour_{hour}_{most_common}",
                     pattern_type="temporal",
-                    description=f"Saat {hour}:00'da genellikle {most_common} aksiyonu",
+                    description=f"Usually performs {most_common} action at {hour}:00",
                     frequency=len(hour_actions),
                     confidence=min(0.9, len(hour_actions) / 10),
                     last_seen=max(a.timestamp for a in hour_actions),
@@ -116,10 +116,10 @@ class PatternRecognizer:
         return patterns
     
     def analyze_sequential_patterns(self, actions: List[UserAction]) -> List[BehaviorPattern]:
-        """Sıralı kalıpları analiz eder"""
+        """Analyzes sequential patterns"""
         patterns = []
-        
-        # 2-3 aksiyonluk sekansları bul
+
+        # Find 2-3 action sequences
         for window_size in [2, 3]:
             sequences = defaultdict(int)
             
@@ -128,11 +128,11 @@ class PatternRecognizer:
                 sequences[sequence] += 1
             
             for sequence, count in sequences.items():
-                if count >= 2:  # En az 2 kez tekrarlanmış
+                if count >= 2:  # Repeated at least 2 times
                     pattern = BehaviorPattern(
                         pattern_id=f"sequential_{'_'.join(sequence)}",
                         pattern_type="sequential",
-                        description=f"Sıralı aksiyon: {' → '.join(sequence)}",
+                        description=f"Sequential action pattern: {' → '.join(sequence)}",
                         frequency=count,
                         confidence=min(0.8, count / 5),
                         last_seen=datetime.now(),
@@ -143,10 +143,10 @@ class PatternRecognizer:
         return patterns
     
     def analyze_contextual_patterns(self, actions: List[UserAction]) -> List[BehaviorPattern]:
-        """Bağlamsal kalıpları analiz eder"""
+        """Analyzes contextual patterns"""
         patterns = []
-        
-        # Uygulama bazlı kalıplar
+
+        # Application-based patterns
         app_actions = defaultdict(list)
         for action in actions:
             if action.app_context:
@@ -160,7 +160,7 @@ class PatternRecognizer:
                 pattern = BehaviorPattern(
                     pattern_id=f"contextual_{app}_{most_common}",
                     pattern_type="contextual",
-                    description=f"{app} uygulamasında genellikle {most_common}",
+                    description=f"Usually performs {most_common} in {app} application",
                     frequency=len(app_action_list),
                     confidence=min(0.85, len(app_action_list) / 8),
                     last_seen=max(a.timestamp for a in app_action_list),
@@ -172,46 +172,46 @@ class PatternRecognizer:
         return patterns
 
 class PredictiveEngine:
-    """Tahmin motoru"""
-    
+    """Prediction engine"""
+
     def __init__(self, data_file: str = "user_behavior_data.json"):
         self.data_file = data_file
-        self.actions_history: deque = deque(maxlen=1000)  # Son 1000 aksiyon
+        self.actions_history: deque = deque(maxlen=1000)  # Last 1000 actions
         self.patterns: List[BehaviorPattern] = []
         self.predictions: List[Prediction] = []
         self.pattern_recognizer = PatternRecognizer()
-        
-        # Veri dosyasını yükle
+
+        # Load data file
         self.load_data()
     
     def record_action(self, action: UserAction):
-        """Kullanıcı aksiyonunu kaydet"""
+        """Record user action"""
         self.actions_history.append(action)
-        logger.info("User action recorded", 
+        logger.info("User action recorded",
                    action_type=action.action_type,
                    target=action.target)
-        
-        # Periyodik olarak kalıpları güncelle
+
+        # Periodically update patterns
         if len(self.actions_history) % 10 == 0:
             self.update_patterns()
-        
-        # Veriyi kaydet
+
+        # Save data
         self.save_data()
     
     def update_patterns(self):
-        """Kalıpları güncelle"""
+        """Update patterns"""
         try:
             actions_list = list(self.actions_history)
-            
-            # Farklı kalıp türlerini analiz et
+
+            # Analyze different pattern types
             temporal_patterns = self.pattern_recognizer.analyze_temporal_patterns(actions_list)
             sequential_patterns = self.pattern_recognizer.analyze_sequential_patterns(actions_list)
             contextual_patterns = self.pattern_recognizer.analyze_contextual_patterns(actions_list)
-            
-            # Mevcut kalıpları güncelle
+
+            # Update existing patterns
             all_new_patterns = temporal_patterns + sequential_patterns + contextual_patterns
-            
-            # Kalıpları birleştir (aynı ID'li olanları güncelle)
+
+            # Merge patterns (update those with same ID)
             pattern_dict = {p.pattern_id: p for p in self.patterns}
             for new_pattern in all_new_patterns:
                 pattern_dict[new_pattern.pattern_id] = new_pattern
@@ -228,22 +228,22 @@ class PredictiveEngine:
             logger.error("Pattern update failed", error=str(e))
     
     def generate_predictions(self, current_context: Dict[str, Any]) -> List[Prediction]:
-        """Mevcut bağlama göre tahminler üret"""
+        """Generate predictions based on current context"""
         predictions = []
         current_time = datetime.now()
         
         try:
-            # Zaman bazlı tahminler
+            # Time-based predictions
             current_hour = current_time.hour
             for pattern in self.patterns:
-                if (pattern.pattern_type == "temporal" and 
+                if (pattern.pattern_type == "temporal" and
                     pattern.time_patterns.get("hour") == current_hour and
                     pattern.confidence > 0.5):
                     
                     prediction = Prediction(
                         prediction_id=f"temporal_{current_hour}_{int(time.time())}",
                         prediction_type="next_action",
-                        description=f"Bu saatte genellikle {pattern.time_patterns.get('action_type')} yaparsınız",
+                        description=f"You usually perform {pattern.time_patterns.get('action_type')} at this hour",
                         confidence=pattern.confidence,
                         suggested_actions=[pattern.time_patterns.get('action_type', '')],
                         context={"hour": current_hour, "pattern_id": pattern.pattern_id},
@@ -251,7 +251,7 @@ class PredictiveEngine:
                     )
                     predictions.append(prediction)
             
-            # Bağlamsal tahminler
+            # Contextual predictions
             current_app = current_context.get("current_app")
             if current_app:
                 for pattern in self.patterns:
@@ -262,7 +262,7 @@ class PredictiveEngine:
                         prediction = Prediction(
                             prediction_id=f"contextual_{current_app}_{int(time.time())}",
                             prediction_type="workflow",
-                            description=f"{current_app} uygulamasında {pattern.actions[0] if pattern.actions else 'bir aksiyon'} yapmanız muhtemel",
+                            description=f"You are likely to perform {pattern.actions[0] if pattern.actions else 'an action'} in {current_app} application",
                             confidence=pattern.confidence,
                             suggested_actions=pattern.actions,
                             context={"app": current_app, "pattern_id": pattern.pattern_id},
@@ -270,7 +270,7 @@ class PredictiveEngine:
                         )
                         predictions.append(prediction)
             
-            # Sıralı tahminler (son aksiyonlara göre)
+            # Sequential predictions (based on recent actions)
             if len(self.actions_history) >= 2:
                 last_actions = [a.action_type for a in list(self.actions_history)[-2:]]
                 last_sequence = tuple(last_actions)
@@ -285,15 +285,15 @@ class PredictiveEngine:
                         prediction = Prediction(
                             prediction_id=f"sequential_{next_action}_{int(time.time())}",
                             prediction_type="next_action",
-                            description=f"Sıradaki aksiyon muhtemelen: {next_action}",
-                            confidence=pattern.confidence * 0.8,  # Biraz daha düşük güven
+                            description=f"Next action is likely: {next_action}",
+                            confidence=pattern.confidence * 0.8,  # Slightly lower confidence
                             suggested_actions=[next_action],
                             context={"sequence": last_actions, "pattern_id": pattern.pattern_id},
                             expires_at=current_time + timedelta(minutes=10)
                         )
                         predictions.append(prediction)
             
-            # Eski tahminleri temizle
+            # Clean up old predictions
             self.predictions = [p for p in self.predictions if not p.is_expired()]
             
             # Yeni tahminleri ekle
@@ -307,19 +307,19 @@ class PredictiveEngine:
         return predictions
     
     def get_proactive_suggestions(self) -> List[Dict[str, Any]]:
-        """Proaktif öneriler al"""
+        """Get proactive suggestions"""
         suggestions = []
-        
+
         try:
             current_context = {
                 "current_time": datetime.now(),
-                "current_app": None  # Bu gerçek uygulamada doldurulacak
+                "current_app": None  # This will be filled in real application
             }
-            
-            # Yeni tahminler üret
+
+            # Generate new predictions
             predictions = self.generate_predictions(current_context)
             
-            # Yüksek güvenli tahminleri önerilere çevir
+            # Convert high-confidence predictions to suggestions
             for prediction in predictions:
                 if prediction.confidence > 0.7:
                     suggestion = {
@@ -331,13 +331,13 @@ class PredictiveEngine:
                     }
                     suggestions.append(suggestion)
             
-            # Kalıp bazlı öneriler
+            # Pattern-based suggestions
             high_confidence_patterns = [p for p in self.patterns if p.confidence > 0.8]
             if high_confidence_patterns:
                 pattern = max(high_confidence_patterns, key=lambda x: x.confidence)
                 suggestion = {
                     "type": "pattern_insight",
-                    "message": f"En güçlü davranış kalıbınız: {pattern.description}",
+                    "message": f"Your strongest behavior pattern: {pattern.description}",
                     "confidence": pattern.confidence,
                     "frequency": pattern.frequency
                 }
@@ -349,7 +349,7 @@ class PredictiveEngine:
         return suggestions
     
     def get_user_insights(self) -> Dict[str, Any]:
-        """Kullanıcı davranış analizi"""
+        """User behavior analysis"""
         try:
             insights = {
                 "total_actions": len(self.actions_history),
@@ -364,7 +364,7 @@ class PredictiveEngine:
                 "strongest_patterns": []
             }
             
-            # En yaygın aksiyonlar
+            # Most common actions
             if self.actions_history:
                 action_counts = defaultdict(int)
                 for action in self.actions_history:
@@ -383,7 +383,7 @@ class PredictiveEngine:
                     hour_counts.items(), key=lambda x: x[1], reverse=True
                 )[:3]
             
-            # En güçlü kalıplar
+            # Strongest patterns
             insights["strongest_patterns"] = [
                 {
                     "description": p.description,

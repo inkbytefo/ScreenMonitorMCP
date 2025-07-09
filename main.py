@@ -96,7 +96,7 @@ async def on_change_detected(change_event: ChangeEvent):
             if change_event.screenshot_base64:
                 analysis = await openai_provider.analyze_image(
                     image_base64=change_event.screenshot_base64,
-                    prompt=f"Bu ekran değişikliğini analiz edin. Değişiklik tipi: {change_event.change_type}, Etkilenen bölgeler: {len(change_event.affected_regions)}",
+                    prompt=f"Analyze this screen change. Change type: {change_event.change_type}, Affected regions: {len(change_event.affected_regions)}. Provide a detailed analysis of what changed and its significance.",
                     model=DEFAULT_OPENAI_MODEL,
                     output_format="png",
                     max_tokens=150
@@ -190,7 +190,7 @@ async def list_tools() -> Dict[str, Any]:
         },
         {
             "name": "start_continuous_monitoring",
-            "description": "🚀 REVOLUTIONARY: Starts AI's continuous screen monitoring with real-time vision",
+            "description": "REVOLUTIONARY: Starts AI's continuous screen monitoring with real-time vision",
             "category": "revolutionary",
             "parameters": ["fps", "change_threshold", "smart_detection", "save_screenshots"]
         },
@@ -214,43 +214,43 @@ async def list_tools() -> Dict[str, Any]:
         },
         {
             "name": "analyze_ui_elements",
-            "description": "🚀 REVOLUTIONARY: Detects and maps all UI elements on screen with interaction capabilities",
+            "description": "REVOLUTIONARY: Detects and maps all UI elements on screen with interaction capabilities",
             "category": "revolutionary",
             "parameters": ["detect_buttons", "detect_text_fields", "extract_text", "confidence_threshold"]
         },
         {
             "name": "smart_click",
-            "description": "🚀 REVOLUTIONARY: AI clicks elements using natural language commands",
+            "description": "REVOLUTIONARY: AI clicks elements using natural language commands",
             "category": "revolutionary",
             "parameters": ["element_description", "confidence_threshold", "dry_run"]
         },
         {
             "name": "extract_text_from_screen",
-            "description": "🚀 REVOLUTIONARY: Extracts text from screen using OCR technology",
+            "description": "REVOLUTIONARY: Extracts text from screen using OCR technology",
             "category": "revolutionary",
             "parameters": ["region", "ocr_engine"]
         },
         {
             "name": "learn_user_patterns",
-            "description": "🚀 REVOLUTIONARY: AI learns user behavior patterns and habits",
+            "description": "REVOLUTIONARY: AI learns user behavior patterns and habits",
             "category": "revolutionary",
             "parameters": []
         },
         {
             "name": "predict_user_intent",
-            "description": "🚀 REVOLUTIONARY: Predicts user's future intentions based on context",
+            "description": "REVOLUTIONARY: Predicts user's future intentions based on context",
             "category": "revolutionary",
             "parameters": ["current_context", "prediction_horizon"]
         },
         {
             "name": "proactive_assistance",
-            "description": "🚀 REVOLUTIONARY: Offers proactive help before user asks",
+            "description": "REVOLUTIONARY: Offers proactive help before user asks",
             "category": "revolutionary",
             "parameters": []
         },
         {
             "name": "record_user_action",
-            "description": "🚀 REVOLUTIONARY: Records user actions for learning system",
+            "description": "REVOLUTIONARY: Records user actions for learning system",
             "category": "revolutionary",
             "parameters": ["action_type", "target", "coordinates", "text_content", "app_context"]
         }
@@ -327,7 +327,7 @@ async def start_continuous_monitoring(
     save_screenshots: bool = True
 ) -> Dict[str, Any]:
     """
-    🚀 REVOLUTIONARY FEATURE: Starts AI's continuous screen monitoring.
+    REVOLUTIONARY FEATURE: Starts AI's continuous screen monitoring.
 
     This tool gives AI real-time vision capabilities. AI can now continuously monitor
     the screen and detect changes, not just when requested.
@@ -470,15 +470,15 @@ async def analyze_ui_elements(
     confidence_threshold: float = 0.5
 ) -> Dict[str, Any]:
     """
-    🚀 DEVRIMSEL ÖZELLİK: Ekrandaki tüm UI elementlerini tanır ve etkileşim haritası çıkarır.
+    REVOLUTIONARY FEATURE: Identifies all UI elements on screen and creates interaction map.
 
-    AI artık sadece görmekle kalmıyor, hangi butona basacağını, hangi formu dolduracağını biliyor!
+    AI now not only sees but knows which button to press, which form to fill!
 
     Args:
-        detect_buttons: Butonları algıla
-        detect_text_fields: Metin alanlarını algıla
-        extract_text: OCR ile metinleri çıkar
-        confidence_threshold: Minimum güven eşiği (0.0-1.0)
+        detect_buttons: Detect buttons on screen
+        detect_text_fields: Detect text input fields
+        extract_text: Extract text using OCR
+        confidence_threshold: Minimum confidence threshold (0.0-1.0)
 
     Returns:
         UI elementleri, koordinatlar ve etkileşim önerileri
@@ -543,11 +543,11 @@ async def analyze_ui_elements(
             ],
             "interaction_suggestions": interaction_suggestions,
             "capabilities": [
-                "UI element detection",
-                "Text extraction (OCR)",
-                "Clickable element identification",
-                "Coordinate mapping",
-                "Interaction planning"
+                "Advanced UI element detection",
+                "Multi-language text extraction (OCR)",
+                "Smart clickable element identification",
+                "Precise coordinate mapping",
+                "Intelligent interaction planning"
             ]
         }
 
@@ -562,7 +562,7 @@ async def smart_click(
     dry_run: bool = False
 ) -> Dict[str, Any]:
     """
-    🚀 REVOLUTIONARY FEATURE: AI finds and clicks elements described in natural language.
+    REVOLUTIONARY FEATURE: AI finds and clicks elements described in natural language.
 
     Example usage:
     - "Click the save button"
@@ -625,7 +625,7 @@ async def extract_text_from_screen(
     ocr_engine: str = "auto"
 ) -> Dict[str, Any]:
     """
-    🚀 REVOLUTIONARY FEATURE: Extract text from screen or specific region.
+    REVOLUTIONARY FEATURE: Extract text from screen or specific region.
 
     Args:
         region: Specific region {'x': int, 'y': int, 'width': int, 'height': int}
@@ -730,7 +730,7 @@ async def extract_text_from_screen(
 @mcp.tool()
 async def learn_user_patterns() -> Dict[str, Any]:
     """
-    🚀 REVOLUTIONARY FEATURE: Learns and analyzes user behavior patterns.
+    REVOLUTIONARY FEATURE: Learns and analyzes user behavior patterns.
 
     AI is now learning user habits and can predict future needs!
 
@@ -778,7 +778,7 @@ async def predict_user_intent(
     prediction_horizon: int = 30
 ) -> Dict[str, Any]:
     """
-    🚀 REVOLUTIONARY FEATURE: Predicts user's future intentions.
+    REVOLUTIONARY FEATURE: Predicts user's future intentions.
 
     Args:
         current_context: Current context information
@@ -839,7 +839,7 @@ async def predict_user_intent(
 @mcp.tool()
 async def proactive_assistance() -> str:
     """
-    🚀 REVOLUTIONARY FEATURE: Offers proactive help before user requests.
+    REVOLUTIONARY FEATURE: Offers proactive help before user requests.
 
     AI can now predict user needs in advance and offer help!
 
@@ -861,14 +861,14 @@ async def proactive_assistance() -> str:
             }
             enhanced_suggestions.append(enhanced_suggestion)
 
-        # Ek akıllı öneriler
+        # Additional intelligent recommendations
         insights = engine.get_user_insights()
 
-        # Genel sistem önerileri
+        # General system recommendations
         if insights.get("total_actions", 0) == 0:
             enhanced_suggestions.append({
                 "type": "welcome",
-                "message": "Hoş geldiniz! AI sistemi davranışlarınızı öğrenmeye başlayacak. Birkaç aksiyon kaydettikten sonra size özel öneriler sunabilirim.",
+                "message": "Welcome! The AI system will start learning your behaviors. After recording a few actions, I can provide personalized recommendations for you.",
                 "confidence": 1.0,
                 "priority": "high",
                 "category": "onboarding",
@@ -896,24 +896,24 @@ async def proactive_assistance() -> str:
                     "timestamp": datetime.now().isoformat()
                 })
 
-            # Zaman bazlı öneriler
+            # Time-based recommendations
             if insights.get('peak_activity_hours'):
                 peak_hour = insights['peak_activity_hours'][0][0]
                 enhanced_suggestions.append({
                     "type": "time_insight",
-                    "message": f"En aktif olduğunuz saat: {peak_hour}:00. Bu saatte daha verimli çalışabilirsiniz.",
+                    "message": f"Your most active hour is {peak_hour}:00. You can work more efficiently during this time.",
                     "confidence": 0.7,
                     "priority": "low",
                     "category": "time_management",
                     "timestamp": datetime.now().isoformat()
                 })
 
-        # Sistem durumu önerileri
+        # System status recommendations
         monitor = get_global_monitor()
         if monitor and not monitor.is_monitoring:
             enhanced_suggestions.append({
                 "type": "system_suggestion",
-                "message": "Gerçek zamanlı izleme kapalı. Daha iyi analiz için sürekli izlemeyi başlatabilirsiniz.",
+                "message": "Real-time monitoring is disabled. You can start continuous monitoring for better analysis and insights.",
                 "confidence": 0.8,
                 "priority": "medium",
                 "category": "system",
@@ -934,7 +934,7 @@ async def proactive_assistance() -> str:
                 "Predictive assistance",
                 "Productivity insights",
                 "Time management suggestions",
-                "System optimization tips"
+                "Advanced system optimization recommendations"
             ]
         }
 
@@ -961,7 +961,7 @@ async def record_user_action(
     window_title: Optional[str] = None
 ) -> Dict[str, Any]:
     """
-    🚀 REVOLUTIONARY FEATURE: Records user action and feeds learning system.
+    REVOLUTIONARY FEATURE: Records user action and feeds learning system.
 
     Args:
         action_type: Action type ('click', 'type', 'scroll', 'app_switch')
@@ -1076,14 +1076,14 @@ if __name__ == "__main__":
     else:
         logger.warning("Server is UNSECURED. No API Key provided.")
 
-    print("Devrimsel Ozellikler:")
-    print("   - Real-Time Continuous Monitoring - AI'nin surekli gorme yetisi")
-    print("   - Smart Change Detection - Akilli degisiklik algilama")
-    print("   - UI Element Detection - Arayuz elementi tanima ve etkilesim")
-    print("   - OCR Text Extraction - Ekrandan metin okuma")
-    print("   - Smart Click System - Dogal dil ile tiklama")
-    print("   - Predictive Intelligence - Davranis ogrenme ve tahmin")
-    print("   - Proactive Assistance - Ongorulu yardim sistemi")
+    print("Revolutionary Features:")
+    print("   - Real-Time Continuous Monitoring - AI's continuous vision capability")
+    print("   - Smart Change Detection - Intelligent change detection")
+    print("   - UI Element Detection - Interface element recognition and interaction")
+    print("   - OCR Text Extraction - Screen text reading")
+    print("   - Smart Click System - Natural language clicking")
+    print("   - Predictive Intelligence - Behavior learning and prediction")
+    print("   - Proactive Assistance - Predictive assistance system")
     print()
 
     print("Revolutionary MCP Tools:")
