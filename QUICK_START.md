@@ -1,13 +1,13 @@
 # 🚀 Quick Start Guide - Revolutionary MCP Server
 
-## ⚡ **HIZLI BAŞLANGIÇ**
+## ⚡ **QUICK START**
 
-### **1. Kütüphaneleri Yükle**
+### **1. Install Libraries**
 ```bash
 pip install -r requirements.txt
 ```
 
-### **2. .env Dosyasını Ayarla**
+### **2. Setup .env File**
 ```env
 OPENAI_API_KEY=your_openai_api_key_here
 OPENAI_BASE_URL=https://api.openai.com/v1
@@ -17,38 +17,38 @@ HOST=127.0.0.1
 PORT=7777
 ```
 
-### **3. MCP İstemci Konfigürasyonu**
+### **3. MCP Client Configuration**
 
-Claude Desktop veya diğer MCP istemcinizde:
+In Claude Desktop or other MCP client:
 
 ```json
 {
   "mcpServers": {
     "screenMonitorMCP": {
       "command": "python",
-      "args": ["C:/Users/tpoyr/OneDrive/Desktop/ScreenMonitorMCP/main.py"],
-      "cwd": "C:/Users/tpoyr/OneDrive/Desktop/ScreenMonitorMCP"
+      "args": ["path/to/ScreenMonitorMCP/main.py"],
+      "cwd": "path/to/ScreenMonitorMCP"
     }
   }
 }
 ```
 
-**⚠️ Önemli:** Dosya yolunu kendi proje dizininize göre güncelleyin!
+**⚠️ Important:** Update the file path according to your project directory!
 
-### **4. Test Et**
+### **4. Test It**
 ```bash
-# Sunucuyu test et
+# Test the server
 python main.py
 
-# Devrimsel özellikleri test et
+# Test revolutionary features
 python test_revolutionary_features.py
 ```
 
-## 🔥 **DEVRIMSEL ARAÇLAR**
+## 🔥 **REVOLUTIONARY TOOLS**
 
 ### **🔄 Real-Time Monitoring**
 ```python
-# AI'nın sürekli görme özelliği
+# AI's continuous vision capability
 await start_continuous_monitoring(fps=3)
 await get_monitoring_status()
 await stop_continuous_monitoring()
@@ -56,38 +56,38 @@ await stop_continuous_monitoring()
 
 ### **🎯 UI Intelligence**
 ```python
-# UI elementlerini tanı ve etkileşim kur
+# Recognize UI elements and interact
 await analyze_ui_elements()
-await smart_click("Kaydet butonuna tıkla")
+await smart_click("Click the save button")
 await extract_text_from_screen()
 ```
 
 ### **🧠 Predictive AI**
 ```python
-# Davranış öğren ve tahmin et
+# Learn behavior and predict
 await learn_user_patterns()
 await predict_user_intent()
 await proactive_assistance()
 ```
 
-## 🛠️ **SORUN GİDERME**
+## 🛠️ **TROUBLESHOOTING**
 
-### **Unicode Hatası (Windows) - ÇÖZÜLDİ ✅**
+### **Unicode Error (Windows) - FIXED ✅**
 ```
 UnicodeEncodeError: 'charmap' codec can't encode character
 ```
-Bu hata artık otomatik düzeltiliyor!
+This error is now automatically fixed!
 
-### **JSON Hatası**
+### **JSON Error**
 ```json
-// ❌ Yanlış - son virgül
+// ❌ Wrong - trailing comma
 {"args": ["path",]}
 
-// ✅ Doğru
+// ✅ Correct
 {"args": ["path"]}
 ```
 
-### **Python Path Sorunu**
+### **Python Path Issue**
 ```json
 {
   "command": "C:/Python311/python.exe",
@@ -95,26 +95,26 @@ Bu hata artık otomatik düzeltiliyor!
 }
 ```
 
-### **Dependencies Eksik**
+### **Missing Dependencies**
 ```bash
 pip install opencv-python numpy structlog pytesseract easyocr pyautogui
 ```
 
-## 🎯 **İLK DENEME**
+## 🎯 **FIRST TRY**
 
-MCP istemcinizde şu komutları deneyin:
+Try these commands in your MCP client:
 
-1. `list_tools()` - Tüm araçları gör
-2. `start_continuous_monitoring()` - AI'nın gözlerini aç
-3. `analyze_ui_elements()` - Ekranı analiz et
-4. `smart_click("close button", dry_run=true)` - Akıllı tıklama test et
+1. `list_tools()` - See all tools
+2. `start_continuous_monitoring()` - Open AI's eyes
+3. `analyze_ui_elements()` - Analyze the screen
+4. `smart_click("close button", dry_run=true)` - Test smart clicking
 
-## 🚀 **BAŞARILI!**
+## 🚀 **SUCCESS!**
 
-Artık AI'nız:
-- 👁️ Sürekli ekranı izleyebilir
-- 🧠 UI elementlerini tanıyabilir  
-- 🔮 Davranışlarınızı öğrenebilir
-- ⚡ Proaktif yardım edebilir
+Now your AI can:
+- 👁️ Continuously monitor the screen
+- 🧠 Recognize UI elements
+- 🔮 Learn your behaviors
+- ⚡ Provide proactive help
 
-**Gelecek nesil AI-insan etkileşimi başladı! 🔥**
+**Next-generation AI-human interaction has begun! 🔥**

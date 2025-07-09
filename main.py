@@ -315,7 +315,7 @@ async def list_tools() -> Dict[str, Any]:
         }
     }
 
-# === DEVRIMSEL ÖZELLIK 1: REAL-TIME MONITORING ===
+# === REVOLUTIONARY FEATURE 1: REAL-TIME MONITORING ===
 
 @mcp.tool()
 async def start_continuous_monitoring(
@@ -327,21 +327,21 @@ async def start_continuous_monitoring(
     save_screenshots: bool = True
 ) -> Dict[str, Any]:
     """
-    🚀 DEVRIMSEL ÖZELLİK: AI'nın sürekli ekranı izlemesini başlatır.
+    🚀 REVOLUTIONARY FEATURE: Starts AI's continuous screen monitoring.
 
-    Bu araç AI'ya gerçek zamanlı görme yetisi kazandırır. AI artık sadece istendiğinde değil,
-    sürekli olarak ekranı izleyebilir ve değişiklikleri algılayabilir.
+    This tool gives AI real-time vision capabilities. AI can now continuously monitor
+    the screen and detect changes, not just when requested.
 
     Args:
-        fps: Saniyede kaç frame yakalanacağı (1-10 arası önerilir)
-        change_threshold: Küçük değişiklikler için eşik (0.0-1.0)
-        major_change_threshold: Büyük değişiklikler için eşik (0.0-1.0)
-        critical_change_threshold: Kritik değişiklikler için eşik (0.0-1.0)
-        smart_detection: Akıllı değişiklik algılama aktif mi
-        save_screenshots: Değişiklik anında screenshot kaydet mi
+        fps: How many frames per second to capture (1-10 recommended)
+        change_threshold: Threshold for small changes (0.0-1.0)
+        major_change_threshold: Threshold for major changes (0.0-1.0)
+        critical_change_threshold: Threshold for critical changes (0.0-1.0)
+        smart_detection: Whether smart change detection is active
+        save_screenshots: Whether to save screenshots when changes occur
 
     Returns:
-        Monitoring başlatma durumu ve yapılandırma bilgileri
+        Monitoring startup status and configuration information
     """
     try:
         monitor = get_global_monitor()
@@ -362,26 +362,26 @@ async def start_continuous_monitoring(
         return {
             **result,
             "revolutionary_feature": "Real-Time AI Vision",
-            "description": "AI artık sürekli ekranınızı izliyor ve değişiklikleri algılıyor!",
+            "description": "AI is now continuously monitoring your screen and detecting changes!",
             "capabilities": [
-                "Gerçek zamanlı değişiklik algılama",
-                "Akıllı değişiklik sınıflandırması",
-                "Proaktif AI analizi",
-                "Otomatik screenshot kaydetme"
+                "Real-time change detection",
+                "Smart change classification",
+                "Proactive AI analysis",
+                "Automatic screenshot saving"
             ]
         }
 
     except Exception as e:
         logger.error("Failed to start continuous monitoring", error=str(e))
-        return {"error": f"Monitoring başlatılamadı: {str(e)}"}
+        return {"error": f"Monitoring could not be started: {str(e)}"}
 
 @mcp.tool()
 async def stop_continuous_monitoring() -> Dict[str, Any]:
     """
-    Sürekli ekran izlemeyi durdurur.
+    Stops continuous screen monitoring.
 
     Returns:
-        Monitoring durdurma durumu ve istatistikler
+        Monitoring stop status and statistics
     """
     try:
         monitor = get_global_monitor()
@@ -393,21 +393,21 @@ async def stop_continuous_monitoring() -> Dict[str, Any]:
 
         return {
             **result,
-            "message": "AI'nın sürekli görme özelliği durduruldu",
-            "note": "İstatistikler kaydedildi"
+            "message": "AI's continuous vision feature stopped",
+            "note": "Statistics saved"
         }
 
     except Exception as e:
         logger.error("Failed to stop continuous monitoring", error=str(e))
-        return {"error": f"Monitoring durdurulamadı: {str(e)}"}
+        return {"error": f"Monitoring could not be stopped: {str(e)}"}
 
 @mcp.tool()
 async def get_monitoring_status() -> Dict[str, Any]:
     """
-    Real-time monitoring durumunu ve istatistiklerini getirir.
+    Gets real-time monitoring status and statistics.
 
     Returns:
-        Monitoring durumu, istatistikler ve son olaylar
+        Monitoring status, statistics and recent events
     """
     try:
         monitor = get_global_monitor()
@@ -418,24 +418,24 @@ async def get_monitoring_status() -> Dict[str, Any]:
 
         return {
             **status,
-            "revolutionary_insight": "AI'nın görme geçmişi",
-            "description": "AI'nın ne kadar süre ekranınızı izlediği ve neler algıladığı"
+            "revolutionary_insight": "AI's vision history",
+            "description": "How long AI has been monitoring your screen and what it has detected"
         }
 
     except Exception as e:
         logger.error("Failed to get monitoring status", error=str(e))
-        return {"error": f"Status alınamadı: {str(e)}"}
+        return {"error": f"Status could not be retrieved: {str(e)}"}
 
 @mcp.tool()
 async def get_recent_changes(limit: int = 10) -> List[Dict[str, Any]]:
     """
-    Son algılanan ekran değişikliklerini getirir.
+    Gets recently detected screen changes.
 
     Args:
-        limit: Kaç tane son değişiklik getirileceği
+        limit: How many recent changes to retrieve
 
     Returns:
-        Son değişikliklerin listesi
+        List of recent changes
     """
     try:
         monitor = get_global_monitor()
@@ -458,9 +458,9 @@ async def get_recent_changes(limit: int = 10) -> List[Dict[str, Any]]:
 
     except Exception as e:
         logger.error("Failed to get recent changes", error=str(e))
-        return [{"error": f"Recent changes alınamadı: {str(e)}"}]
+        return [{"error": f"Recent changes could not be retrieved: {str(e)}"}]
 
-# === DEVRIMSEL ÖZELLIK 2: UI ELEMENT DETECTION ===
+# === REVOLUTIONARY FEATURE 2: UI ELEMENT DETECTION ===
 
 @mcp.tool()
 async def analyze_ui_elements(
@@ -519,7 +519,7 @@ async def analyze_ui_elements(
 
         return {
             "revolutionary_feature": "AI UI Intelligence",
-            "description": "AI artık ekrandaki tüm UI elementlerini tanıyor ve nasıl etkileşim kuracağını biliyor!",
+            "description": "AI now recognizes all UI elements on screen and knows how to interact with them!",
             "analysis_summary": {
                 "total_elements": len(filtered_elements),
                 "buttons": len(buttons),
@@ -553,7 +553,7 @@ async def analyze_ui_elements(
 
     except Exception as e:
         logger.error("UI analysis failed", error=str(e))
-        return {"error": f"UI analizi başarısız: {str(e)}"}
+        return {"error": f"UI analysis failed: {str(e)}"}
 
 @mcp.tool()
 async def smart_click(
@@ -562,26 +562,26 @@ async def smart_click(
     dry_run: bool = False
 ) -> Dict[str, Any]:
     """
-    🚀 DEVRIMSEL ÖZELLİK: AI'nın doğal dil ile tarif edilen elementi bulup tıklaması.
+    🚀 REVOLUTIONARY FEATURE: AI finds and clicks elements described in natural language.
 
-    Örnek kullanımlar:
-    - "Kaydet butonuna tıkla"
-    - "E-mail alanını tıkla"
-    - "Giriş yap butonunu bul ve tıkla"
+    Example usage:
+    - "Click the save button"
+    - "Click the email field"
+    - "Find and click the login button"
 
     Args:
-        element_description: Tıklanacak elementin doğal dil açıklaması
-        confidence_threshold: Minimum güven eşiği
-        dry_run: Sadece bul, tıklama (test modu)
+        element_description: Natural language description of element to click
+        confidence_threshold: Minimum confidence threshold
+        dry_run: Only find, don't click (test mode)
 
     Returns:
-        Tıklama sonucu ve element bilgileri
+        Click result and element information
     """
     try:
         clicker = get_smart_clicker()
 
         if dry_run:
-            # Sadece elementi bul, tıklama
+            # Only find element, don't click
             element = clicker.find_element_by_text(element_description, confidence_threshold)
 
             if element:
@@ -617,7 +617,7 @@ async def smart_click(
 
     except Exception as e:
         logger.error("Smart click failed", error=str(e))
-        return {"error": f"Smart click başarısız: {str(e)}"}
+        return {"error": f"Smart click failed: {str(e)}"}
 
 @mcp.tool()
 async def extract_text_from_screen(
@@ -625,23 +625,23 @@ async def extract_text_from_screen(
     ocr_engine: str = "auto"
 ) -> Dict[str, Any]:
     """
-    🚀 DEVRIMSEL ÖZELLİK: Ekrandan veya belirli bölgeden metin çıkarma.
+    🚀 REVOLUTIONARY FEATURE: Extract text from screen or specific region.
 
     Args:
-        region: Belirli bölge {'x': int, 'y': int, 'width': int, 'height': int}
-        ocr_engine: OCR motoru ('auto', 'tesseract', 'easyocr')
+        region: Specific region {'x': int, 'y': int, 'width': int, 'height': int}
+        ocr_engine: OCR engine ('auto', 'tesseract', 'easyocr')
 
     Returns:
-        Çıkarılan metinler ve koordinatları
+        Extracted texts and their coordinates
     """
     try:
         import mss
         import cv2
 
-        # Screenshot al
+        # Take screenshot
         with mss.mss() as sct:
             if region:
-                # Belirli bölgeyi yakala
+                # Capture specific region
                 capture_area = {
                     "top": region["y"],
                     "left": region["x"],
@@ -649,17 +649,17 @@ async def extract_text_from_screen(
                     "height": region["height"]
                 }
             else:
-                # Tüm ekranı yakala
+                # Capture entire screen
                 capture_area = sct.monitors[0]
 
             sct_img = sct.grab(capture_area)
             screenshot = np.array(sct_img)
             screenshot = cv2.cvtColor(screenshot, cv2.COLOR_BGRA2BGR)
 
-        # OCR uygula
+        # Apply OCR
         detector = get_ui_detector()
 
-        # OCR engine ayarını güncelle
+        # Update OCR engine setting
         if ocr_engine in ["tesseract", "easyocr"]:
             detector.ocr_engine.preferred_engine = ocr_engine
 
@@ -695,7 +695,7 @@ async def extract_text_from_screen(
 
         return {
             "revolutionary_feature": "AI Text Extraction",
-            "description": "AI ekrandan metinleri okuyabiliyor ve konumlarını biliyor!",
+            "description": "AI can read texts from screen and knows their locations!",
             "total_texts_found": len(extracted_texts),
             "ocr_engine_used": ocr_engine_used,
             "region_analyzed": region or "full_screen",
@@ -719,23 +719,23 @@ async def extract_text_from_screen(
     except Exception as e:
         logger.error("Text extraction failed", error=str(e))
         return {
-            "error": f"Metin çıkarma başarısız: {str(e)}",
+            "error": f"Text extraction failed: {str(e)}",
             "total_texts_found": 0,
             "ocr_engine_used": "error",
             "extracted_texts": []
         }
 
-# === DEVRIMSEL ÖZELLIK 3: PREDICTIVE INTELLIGENCE ===
+# === REVOLUTIONARY FEATURE 3: PREDICTIVE INTELLIGENCE ===
 
 @mcp.tool()
 async def learn_user_patterns() -> Dict[str, Any]:
     """
-    🚀 DEVRIMSEL ÖZELLİK: Kullanıcının davranış kalıplarını öğrenir ve analiz eder.
+    🚀 REVOLUTIONARY FEATURE: Learns and analyzes user behavior patterns.
 
-    AI artık kullanıcının alışkanlıklarını öğreniyor ve gelecekteki ihtiyaçları tahmin edebiliyor!
+    AI is now learning user habits and can predict future needs!
 
     Returns:
-        Kullanıcı davranış analizi ve kalıplar
+        User behavior analysis and patterns
     """
     try:
         engine = get_predictive_engine()
@@ -770,7 +770,7 @@ async def learn_user_patterns() -> Dict[str, Any]:
 
     except Exception as e:
         logger.error("User pattern learning failed", error=str(e))
-        return {"error": f"Davranış kalıpları öğrenme başarısız: {str(e)}"}
+        return {"error": f"Behavior pattern learning failed: {str(e)}"}
 
 @mcp.tool()
 async def predict_user_intent(
@@ -778,14 +778,14 @@ async def predict_user_intent(
     prediction_horizon: int = 30
 ) -> Dict[str, Any]:
     """
-    🚀 DEVRIMSEL ÖZELLİK: Kullanıcının gelecekteki niyetlerini tahmin eder.
+    🚀 REVOLUTIONARY FEATURE: Predicts user's future intentions.
 
     Args:
-        current_context: Mevcut bağlam bilgisi
-        prediction_horizon: Tahmin süresi (dakika)
+        current_context: Current context information
+        prediction_horizon: Prediction time horizon (minutes)
 
     Returns:
-        Kullanıcı niyet tahminleri ve öneriler
+        User intent predictions and suggestions
     """
     try:
         engine = get_predictive_engine()
@@ -798,10 +798,10 @@ async def predict_user_intent(
 
         predictions = engine.generate_predictions(current_context)
 
-        # Tahminleri formatla
+        # Format predictions
         formatted_predictions = []
         for pred in predictions:
-            if pred.confidence > 0.5:  # Sadece güvenli tahminler
+            if pred.confidence > 0.5:  # Only confident predictions
                 formatted_predictions.append({
                     "prediction": pred.description,
                     "confidence": round(pred.confidence * 100, 1),
@@ -834,17 +834,17 @@ async def predict_user_intent(
 
     except Exception as e:
         logger.error("User intent prediction failed", error=str(e))
-        return {"error": f"Niyet tahmini başarısız: {str(e)}"}
+        return {"error": f"Intent prediction failed: {str(e)}"}
 
 @mcp.tool()
 async def proactive_assistance() -> str:
     """
-    🚀 DEVRIMSEL ÖZELLİK: Kullanıcı istemeden önce proaktif yardım önerir.
+    🚀 REVOLUTIONARY FEATURE: Offers proactive help before user requests.
 
-    AI artık kullanıcının ihtiyaçlarını önceden tahmin edip yardım önerebiliyor!
+    AI can now predict user needs in advance and offer help!
 
     Returns:
-        Proaktif yardım önerileri
+        Proactive assistance suggestions
     """
     try:
         engine = get_predictive_engine()
@@ -944,7 +944,7 @@ async def proactive_assistance() -> str:
     except Exception as e:
         logger.error("Proactive assistance failed", error=str(e))
         error_result = {
-            "error": f"Proaktif yardım başarısız: {str(e)}",
+            "error": f"Proactive assistance failed: {str(e)}",
             "suggestions": [],
             "total_suggestions": 0
         }
@@ -961,23 +961,23 @@ async def record_user_action(
     window_title: Optional[str] = None
 ) -> Dict[str, Any]:
     """
-    🚀 DEVRIMSEL ÖZELLİK: Kullanıcı aksiyonunu kaydeder ve öğrenme sistemine besler.
+    🚀 REVOLUTIONARY FEATURE: Records user action and feeds learning system.
 
     Args:
-        action_type: Aksiyon tipi ('click', 'type', 'scroll', 'app_switch')
-        target: Hedef element veya uygulama
-        coordinates: Tıklama koordinatları [x, y]
-        text_content: Yazılan metin
-        app_context: Uygulama bağlamı
-        window_title: Pencere başlığı
+        action_type: Action type ('click', 'type', 'scroll', 'app_switch')
+        target: Target element or application
+        coordinates: Click coordinates [x, y]
+        text_content: Typed text
+        app_context: Application context
+        window_title: Window title
 
     Returns:
-        Kayıt durumu ve öğrenme bilgisi
+        Recording status and learning information
     """
     try:
         engine = get_predictive_engine()
 
-        # UserAction oluştur
+        # Create UserAction
         action = UserAction(
             timestamp=datetime.now(),
             action_type=action_type,
@@ -988,10 +988,10 @@ async def record_user_action(
             window_title=window_title
         )
 
-        # Aksiyonu kaydet
+        # Record action
         engine.record_action(action)
 
-        # Güncel istatistikler
+        # Current statistics
         insights = engine.get_user_insights()
 
         logger.info("User action recorded and learned",
@@ -1017,15 +1017,15 @@ async def record_user_action(
                 "patterns_discovered": insights.get("total_patterns", 0),
                 "learning_status": "Active"
             },
-            "ai_response": "Aksiyon kaydedildi ve davranış kalıpları güncellendi!"
+            "ai_response": "Action recorded and behavior patterns updated!"
         }
 
     except Exception as e:
         logger.error("User action recording failed", error=str(e))
-        return {"error": f"Aksiyon kaydı başarısız: {str(e)}"}
+        return {"error": f"Action recording failed: {str(e)}"}
 
 @mcp.tool()
-async def capture_and_analyze(capture_mode: Literal["all", "monitor", "window", "region"] = "all", monitor_number: int = 1, capture_active_window: bool = False, region: Optional[Dict[str, int]] = None, output_format: Literal["png", "jpeg"] = "png", analysis_prompt: str = "Lütfen bu ekran görüntüsünü analiz edin ve içeriği hakkında bilgi verin.", max_tokens: int = 300) -> str:
+async def capture_and_analyze(capture_mode: Literal["all", "monitor", "window", "region"] = "all", monitor_number: int = 1, capture_active_window: bool = False, region: Optional[Dict[str, int]] = None, output_format: Literal["png", "jpeg"] = "png", analysis_prompt: str = "Please analyze this screenshot and provide information about its content.", max_tokens: int = 300) -> str:
     """
     Captures a screenshot and directly sends it to an AI model for analysis, returning the result.
     
@@ -1054,9 +1054,9 @@ async def capture_and_analyze(capture_mode: Literal["all", "monitor", "window", 
             output_format=output_format,
             max_tokens=max_tokens
         )
-        return f"Ekran görüntüsü başarıyla yakalandı ve analiz edildi. Analiz: {ai_analysis}. Yakalama detayları: {capture_details}. Kullanılan model: {model_to_use}. Kullanılan sağlayıcı: openai"
+        return f"Screenshot successfully captured and analyzed. Analysis: {ai_analysis}. Capture details: {capture_details}. Model used: {model_to_use}. Provider used: openai"
     except Exception as e:
-        return f"Ekran görüntüsü yakalama ve analiz etme başarısız oldu. Hata: {str(e)}. Lütfen parametreleri kontrol edin veya daha sonra tekrar deneyin."
+        return f"Screenshot capture and analysis failed. Error: {str(e)}. Please check parameters or try again later."
 
 # Running the server
 if __name__ == "__main__":
@@ -1068,7 +1068,7 @@ if __name__ == "__main__":
         sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
 
     print("=== REVOLUTIONARY SCREEN MONITOR MCP SERVER ===")
-    print("AI'ya gercek zamanli gorme yetisi kazandiran devrimsel ozellikler!")
+    print("Revolutionary features that give AI real-time vision capabilities!")
     print()
 
     if API_KEY:
@@ -1086,23 +1086,23 @@ if __name__ == "__main__":
     print("   - Proactive Assistance - Ongorulu yardim sistemi")
     print()
 
-    print("Devrimsel MCP Tools:")
+    print("Revolutionary MCP Tools:")
     print("   Real-Time Monitoring:")
-    print("      * start_continuous_monitoring() - Surekli izleme baslat")
-    print("      * stop_continuous_monitoring() - Izlemeyi durdur")
-    print("      * get_monitoring_status() - Durum bilgisi")
-    print("      * get_recent_changes() - Son degisiklikler")
+    print("      * start_continuous_monitoring() - Start continuous monitoring")
+    print("      * stop_continuous_monitoring() - Stop monitoring")
+    print("      * get_monitoring_status() - Status information")
+    print("      * get_recent_changes() - Recent changes")
     print()
     print("   UI Intelligence:")
-    print("      * analyze_ui_elements() - UI elementlerini tani")
-    print("      * smart_click() - Dogal dil ile tikla")
-    print("      * extract_text_from_screen() - Ekrandan metin cikar")
+    print("      * analyze_ui_elements() - Recognize UI elements")
+    print("      * smart_click() - Click with natural language")
+    print("      * extract_text_from_screen() - Extract text from screen")
     print()
     print("   Predictive AI:")
-    print("      * learn_user_patterns() - Davranis kaliplarini ogren")
-    print("      * predict_user_intent() - Kullanici niyetini tahmin et")
-    print("      * proactive_assistance() - Proaktif yardim oner")
-    print("      * record_user_action() - Kullanici aksiyonunu kaydet")
+    print("      * learn_user_patterns() - Learn behavior patterns")
+    print("      * predict_user_intent() - Predict user intent")
+    print("      * proactive_assistance() - Offer proactive help")
+    print("      * record_user_action() - Record user action")
     print()
 
     logger.info("Starting Revolutionary MCP Server with Real-Time Vision")
