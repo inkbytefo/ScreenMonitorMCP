@@ -14,6 +14,8 @@ from PIL import Image
 import structlog
 import pyautogui
 import time
+import difflib
+import re
 
 # OCR imports (will be imported conditionally)
 try:
@@ -218,10 +220,10 @@ class UIElementDetector:
 
         # Find contours
         contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        
+
         for contour in contours:
             x, y, w, h = cv2.boundingRect(contour)
-            
+
             # Text field-like size check
             if 50 < w < 500 and 20 < h < 50:
                 aspect_ratio = w / h
@@ -233,7 +235,57 @@ class UIElementDetector:
                         clickable=True,
                         description=f"Potential text field ({w}x{h})"
                     ))
-        
+
+        return elements
+
+    def detect_menus(self, image: np.ndarray) -> List[UIElement]:
+        """Detects menu elements including menu bars and menu items"""
+        elements = []
+        height, width = image.shape[:2]
+
+        # Menu bar detection (top 10% of screen)
+        menu_bar_region = image[:int(height * 0.1), :]
+        gray_menu = cv2.cvtColor(menu_bar_region, cv2.COLOR_BGR2GRAY)
+
+        # Detect horizontal lines (menu bar indicators)
+        horizontal_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (40, 1))
+        horizontal_lines = cv2.morphologyEx(gray_menu, cv2.MORPH_OPEN, horizontal_kernel)
+
+        # Find menu bar regions
+        contours, _ = cv2.findContours(horizontal_lines, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+        for contour in contours:
+            x, y, w, h = cv2.boundingRect(contour)
+
+            # Menu bar characteristics: wide and thin, at top of screen
+            if w > width * 0.3 and h < 50 and y < height * 0.1:
+                elements.append(UIElement(
+                    element_type="menu_bar",
+                    coordinates=(x, y, w, h),
+                    confidence=0.8,
+                    clickable=True,
+                    description=f"Menu bar ({w}x{h})"
+                ))
+
+        # Detect individual menu items in top region
+        edges = cv2.Canny(gray_menu, 30, 100)
+        contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+        for contour in contours:
+            x, y, w, h = cv2.boundingRect(contour)
+
+            # Menu item characteristics: moderate width, small height, in top region
+            if 30 < w < 200 and 15 < h < 40 and y < height * 0.15:
+                aspect_ratio = w / h
+                if 1.5 < aspect_ratio < 10:  # Menu item proportions
+                    elements.append(UIElement(
+                        element_type="menu_item",
+                        coordinates=(x, y, w, h),
+                        confidence=0.7,
+                        clickable=True,
+                        description=f"Menu item ({w}x{h})"
+                    ))
+
         return elements
     
     def analyze_screen(self, screenshot: Optional[np.ndarray] = None) -> UIAnalysisResult:
@@ -263,10 +315,15 @@ class UIElementDetector:
             # Detect text fields
             text_fields = self.detect_text_fields(screenshot)
             elements.extend(text_fields)
-            
-            logger.info("UI elements detected", 
-                       buttons=len(buttons), 
-                       text_fields=len(text_fields))
+
+            # Detect menus
+            menus = self.detect_menus(screenshot)
+            elements.extend(menus)
+
+            logger.info("UI elements detected",
+                       buttons=len(buttons),
+                       text_fields=len(text_fields),
+                       menus=len(menus))
         except Exception as e:
             logger.error("UI element detection failed", error=str(e))
         
@@ -319,8 +376,50 @@ class SmartClicker:
         pyautogui.FAILSAFE = True
         pyautogui.PAUSE = 0.1
     
-    def find_element_by_text(self, target_text: str, similarity_threshold: float = 0.6) -> Optional[UIElement]:
-        """Finds element by text - enhanced algorithm"""
+    def calculate_fuzzy_similarity(self, text1: str, text2: str) -> float:
+        """Calculate fuzzy similarity between two texts"""
+        if not text1 or not text2:
+            return 0.0
+
+        # Normalize texts
+        text1 = re.sub(r'[^\w\s]', '', text1.lower().strip())
+        text2 = re.sub(r'[^\w\s]', '', text2.lower().strip())
+
+        if text1 == text2:
+            return 1.0
+
+        # Use difflib for sequence matching
+        similarity = difflib.SequenceMatcher(None, text1, text2).ratio()
+        return similarity
+
+    def get_position_score(self, element: UIElement, target_text: str) -> float:
+        """Calculate position-based score for common UI elements"""
+        x, y, w, h = element.coordinates
+        screen_height = 1080  # Assume standard screen height
+        screen_width = 1920   # Assume standard screen width
+
+        position_score = 0.0
+        target_lower = target_text.lower()
+
+        # File menu typically in top-left
+        if 'file' in target_lower and 'menu' in target_lower:
+            if y < screen_height * 0.1 and x < screen_width * 0.2:
+                position_score = 0.3
+
+        # Save/OK buttons typically in bottom-right or center
+        elif any(word in target_lower for word in ['save', 'ok', 'submit', 'apply']):
+            if y > screen_height * 0.7:
+                position_score = 0.2
+
+        # Cancel buttons typically near save buttons
+        elif 'cancel' in target_lower:
+            if y > screen_height * 0.7:
+                position_score = 0.2
+
+        return position_score
+
+    def find_element_by_text(self, target_text: str, similarity_threshold: float = 0.4) -> Optional[UIElement]:
+        """Finds element by text - enhanced algorithm with fuzzy matching"""
         try:
             analysis = self.ui_detector.analyze_screen()
 
@@ -328,47 +427,66 @@ class SmartClicker:
             best_match = None
             best_score = 0
 
-            # Anahtar kelimeler
-            button_keywords = ['button', 'btn', 'click', 'submit', 'save', 'cancel', 'ok', 'yes', 'no']
-            field_keywords = ['field', 'input', 'text', 'email', 'password', 'search']
+            # Enhanced keywords
+            button_keywords = ['button', 'btn', 'click', 'submit', 'save', 'cancel', 'ok', 'yes', 'no', 'apply', 'close']
+            field_keywords = ['field', 'input', 'text', 'email', 'password', 'search', 'box']
+            menu_keywords = ['menu', 'file', 'edit', 'view', 'help', 'tools', 'options']
 
             for element in analysis.elements:
                 score = 0
 
-                # 1. Text content matching
+                # 1. Enhanced text content matching
                 if element.text_content:
                     element_text_lower = element.text_content.lower()
 
                     # Exact match
                     if target_text_lower == element_text_lower:
                         score = 1.0
-                    # İçerik kontrolü
-                    elif target_text_lower in element_text_lower or element_text_lower in target_text_lower:
-                        score = min(len(target_text_lower), len(element_text_lower)) / max(len(target_text_lower), len(element_text_lower))
-                    # Kelime bazlı eşleşme
+                    # Fuzzy matching
                     else:
+                        fuzzy_score = self.calculate_fuzzy_similarity(target_text_lower, element_text_lower)
+                        score = max(score, fuzzy_score)
+
+                        # Substring matching
+                        if target_text_lower in element_text_lower or element_text_lower in target_text_lower:
+                            substring_score = min(len(target_text_lower), len(element_text_lower)) / max(len(target_text_lower), len(element_text_lower))
+                            score = max(score, substring_score)
+
+                        # Word-based matching
                         target_words = set(target_text_lower.split())
                         element_words = set(element_text_lower.split())
                         common_words = target_words.intersection(element_words)
                         if common_words:
-                            score = len(common_words) / max(len(target_words), len(element_words))
+                            word_score = len(common_words) / max(len(target_words), len(element_words))
+                            score = max(score, word_score)
 
-                # 2. Element tipi ile eşleştirme
+                # 2. Enhanced element type matching
                 if any(keyword in target_text_lower for keyword in button_keywords):
                     if element.element_type == "button":
                         score += 0.3
                 elif any(keyword in target_text_lower for keyword in field_keywords):
                     if element.element_type == "text_field":
                         score += 0.3
+                elif any(keyword in target_text_lower for keyword in menu_keywords):
+                    if element.element_type in ["menu_item", "menu_bar"]:
+                        score += 0.4
 
-                # 3. Tıklanabilirlik bonusu
+                # 3. Position-based scoring
+                position_score = self.get_position_score(element, target_text)
+                score += position_score
+
+                # 4. Clickability bonus
                 if element.clickable:
                     score += 0.1
 
-                # 4. Güven skoru bonusu
+                # 5. Confidence bonus
                 score += element.confidence * 0.1
 
-                # En iyi eşleşmeyi güncelle
+                # 6. Element type specific bonuses
+                if element.element_type == "menu_item" and any(word in target_text_lower for word in ['file', 'edit', 'view', 'help']):
+                    score += 0.2
+
+                # Update best match
                 if score > best_score and score >= similarity_threshold:
                     best_score = score
                     best_match = element
@@ -378,9 +496,13 @@ class SmartClicker:
                            target=target_text,
                            found_type=best_match.element_type,
                            score=best_score,
-                           text_content=best_match.text_content)
+                           text_content=best_match.text_content,
+                           coordinates=best_match.coordinates)
             else:
-                logger.warning("No element found", target=target_text, threshold=similarity_threshold)
+                logger.warning("No element found",
+                             target=target_text,
+                             threshold=similarity_threshold,
+                             total_elements=len(analysis.elements))
 
             return best_match
         except Exception as e:

@@ -16,7 +16,8 @@ from mcp.server.fastmcp import FastMCP
 from ai_providers import OpenAIProvider
 from real_time_monitor import RealTimeMonitor, MonitoringConfig, ChangeEvent, get_global_monitor, set_global_monitor
 from ui_detection import UIElementDetector, SmartClicker, get_ui_detector, get_smart_clicker
-from predictive_intelligence import PredictiveEngine, UserAction, get_predictive_engine
+from application_monitor import ApplicationMonitor, ApplicationEvent, get_global_app_monitor, set_global_app_monitor
+
 
 # --- Configuration ---
 load_dotenv()  # Load environment variables from .env file
@@ -88,6 +89,10 @@ monitor_config = MonitoringConfig(
 real_time_monitor = RealTimeMonitor(monitor_config)
 set_global_monitor(real_time_monitor)
 
+# Initialize Application Monitor
+app_monitor = ApplicationMonitor()
+set_global_app_monitor(app_monitor)
+
 # Setup change event callback for AI analysis
 async def on_change_detected(change_event: ChangeEvent):
     """Değişiklik algılandığında AI analizi yapar"""
@@ -108,6 +113,33 @@ async def on_change_detected(change_event: ChangeEvent):
             logger.error("AI analysis failed for change event", error=str(e))
 
 real_time_monitor.add_change_callback(on_change_detected)
+
+# Application monitoring callback
+def on_application_event(app_event: ApplicationEvent):
+    """Handle application events"""
+    try:
+        logger.info("Application event detected",
+                   event_type=app_event.event_type.value,
+                   app_name=app_event.application_name,
+                   window_title=app_event.window_title)
+
+        # If we have an AI provider, analyze the event
+        if openai_provider:
+            try:
+                event_description = f"Application event: {app_event.event_type.value} in {app_event.application_name}"
+                if app_event.window_title:
+                    event_description += f" (Window: {app_event.window_title})"
+
+                # For now, just log the event. In the future, we could capture screenshots
+                # and send them to AI for analysis
+                logger.info("Application event logged for AI analysis", description=event_description)
+
+            except Exception as e:
+                logger.error("AI analysis failed for application event", error=str(e))
+    except Exception as e:
+        logger.error("Application event callback error", error=str(e))
+
+app_monitor.add_event_callback(on_application_event)
 
 # Helper function to capture screenshot
 def _capture_screenshot_to_base64(capture_mode: str, monitor_number: int, capture_active_window: bool, region: Optional[Dict[str, int]], output_format: str) -> tuple[str, Dict[str, Any]]:
@@ -231,28 +263,40 @@ async def list_tools() -> Dict[str, Any]:
             "parameters": ["region", "ocr_engine"]
         },
         {
-            "name": "learn_user_patterns",
-            "description": "REVOLUTIONARY: AI learns user behavior patterns and habits",
+            "name": "get_active_application",
+            "description": "Get currently active application context",
             "category": "revolutionary",
             "parameters": []
         },
         {
-            "name": "predict_user_intent",
-            "description": "REVOLUTIONARY: Predicts user's future intentions based on context",
+            "name": "register_application_events",
+            "description": "Register an application for monitoring specific events",
             "category": "revolutionary",
-            "parameters": ["current_context", "prediction_horizon"]
+            "parameters": ["app_name", "event_types"]
         },
         {
-            "name": "proactive_assistance",
-            "description": "REVOLUTIONARY: Offers proactive help before user asks",
+            "name": "broadcast_application_change",
+            "description": "Broadcast custom application change event to AI clients",
+            "category": "revolutionary",
+            "parameters": ["app_name", "event_type", "event_data"]
+        },
+        {
+            "name": "start_application_monitoring",
+            "description": "Start application monitoring system",
             "category": "revolutionary",
             "parameters": []
         },
         {
-            "name": "record_user_action",
-            "description": "REVOLUTIONARY: Records user actions for learning system",
+            "name": "stop_application_monitoring",
+            "description": "Stop application monitoring system",
             "category": "revolutionary",
-            "parameters": ["action_type", "target", "coordinates", "text_content", "app_context"]
+            "parameters": []
+        },
+        {
+            "name": "get_recent_application_events",
+            "description": "Get recent application events",
+            "category": "revolutionary",
+            "parameters": ["limit", "app_name"]
         }
     ]
 
@@ -266,25 +310,28 @@ async def list_tools() -> Dict[str, Any]:
 
     # Get server status
     monitor = get_global_monitor()
+    app_monitor = get_global_app_monitor()
     server_status = {
         "ai_provider": "OpenAI" if openai_provider else "None",
         "real_time_monitoring": monitor.is_monitoring if monitor else False,
-        "total_actions_learned": len(monitor.event_history) if monitor else 0,
-        "server_version": "1.0.0-revolutionary",
+        "application_monitoring": app_monitor.is_monitoring if app_monitor else False,
+        "total_screen_changes": len(monitor.event_history) if monitor else 0,
+        "total_app_events": len(app_monitor.event_history) if app_monitor else 0,
+        "server_version": "2.1.0-smart-click-enhanced",
         "capabilities": [
             "Real-time screen monitoring",
+            "Application context detection",
             "UI element detection",
             "Smart click automation",
             "OCR text extraction",
-            "Predictive intelligence",
-            "Behavior learning",
-            "Proactive assistance"
+            "Application event broadcasting",
+            "Multi-application support"
         ]
     }
 
     return {
         "mcp_server": "Revolutionary Screen Monitor",
-        "version": "1.0.0",
+        "version": "2.1.0",
         "total_tools": len(tools),
         "revolutionary_features": {
             "count": len(revolutionary_tools),
@@ -305,8 +352,11 @@ async def list_tools() -> Dict[str, Any]:
         "usage_examples": {
             "start_ai_vision": "await start_continuous_monitoring(fps=3)",
             "smart_interaction": "await smart_click('Save button')",
-            "learn_behavior": "await learn_user_patterns()",
-            "get_predictions": "await predict_user_intent()"
+            "ui_analysis": "await analyze_ui_elements()",
+            "text_extraction": "await extract_text_from_screen()",
+            "app_monitoring": "await start_application_monitoring()",
+            "register_blender": "await register_application_events('Blender')",
+            "broadcast_change": "await broadcast_application_change('Blender', 'scene_change', {})"
         },
         "documentation": {
             "quick_start": "See QUICK_START.md for setup instructions",
@@ -725,304 +775,194 @@ async def extract_text_from_screen(
             "extracted_texts": []
         }
 
-# === REVOLUTIONARY FEATURE 3: PREDICTIVE INTELLIGENCE ===
+# === APPLICATION MONITORING SYSTEM ===
 
 @mcp.tool()
-async def learn_user_patterns() -> Dict[str, Any]:
+async def get_active_application() -> Dict[str, Any]:
     """
-    REVOLUTIONARY FEATURE: Learns and analyzes user behavior patterns.
-
-    AI is now learning user habits and can predict future needs!
+    Get currently active application context.
 
     Returns:
-        User behavior analysis and patterns
+        Information about the currently active application and window
     """
     try:
-        engine = get_predictive_engine()
-        insights = engine.get_user_insights()
+        app_monitor = get_global_app_monitor()
+        if not app_monitor:
+            return {"error": "Application monitor not initialized"}
 
-        logger.info("User patterns analyzed",
-                   total_actions=insights.get("total_actions", 0),
-                   total_patterns=insights.get("total_patterns", 0))
+        result = app_monitor.get_active_application()
 
         return {
-            "revolutionary_feature": "AI Behavioral Learning",
-            "description": "AI kullanıcının davranış kalıplarını öğrendi ve analiz etti!",
-            "learning_summary": {
-                "total_actions_recorded": insights.get("total_actions", 0),
-                "patterns_discovered": insights.get("total_patterns", 0),
-                "pattern_types": insights.get("pattern_breakdown", {}),
-                "data_quality": "High" if insights.get("total_actions", 0) > 50 else "Building"
-            },
-            "behavioral_insights": {
-                "most_common_actions": insights.get("most_common_actions", {}),
-                "peak_activity_hours": insights.get("peak_activity_hours", []),
-                "strongest_patterns": insights.get("strongest_patterns", [])
-            },
-            "capabilities": [
-                "Temporal pattern recognition",
-                "Sequential behavior analysis",
-                "Contextual pattern learning",
-                "Predictive modeling",
-                "Proactive assistance"
-            ]
+            "status": "success",
+            "active_application": result,
+            "timestamp": datetime.now().isoformat()
         }
 
     except Exception as e:
-        logger.error("User pattern learning failed", error=str(e))
-        return {"error": f"Behavior pattern learning failed: {str(e)}"}
+        logger.error("Failed to get active application", error=str(e))
+        return {"error": f"Failed to get active application: {str(e)}"}
 
 @mcp.tool()
-async def predict_user_intent(
-    current_context: Optional[Dict[str, Any]] = None,
-    prediction_horizon: int = 30
+async def register_application_events(
+    app_name: str,
+    event_types: Optional[List[str]] = None
 ) -> Dict[str, Any]:
     """
-    REVOLUTIONARY FEATURE: Predicts user's future intentions.
+    Register an application for monitoring specific events.
 
     Args:
-        current_context: Current context information
-        prediction_horizon: Prediction time horizon (minutes)
+        app_name: Name of the application to monitor (e.g., "Blender", "VSCode")
+        event_types: List of event types to monitor (optional)
 
     Returns:
-        User intent predictions and suggestions
+        Registration status and information
     """
     try:
-        engine = get_predictive_engine()
+        app_monitor = get_global_app_monitor()
+        if not app_monitor:
+            return {"error": "Application monitor not initialized"}
 
-        if current_context is None:
-            current_context = {
-                "current_time": datetime.now().isoformat(),
-                "current_app": None
-            }
-
-        predictions = engine.generate_predictions(current_context)
-
-        # Format predictions
-        formatted_predictions = []
-        for pred in predictions:
-            if pred.confidence > 0.5:  # Only confident predictions
-                formatted_predictions.append({
-                    "prediction": pred.description,
-                    "confidence": round(pred.confidence * 100, 1),
-                    "suggested_actions": pred.suggested_actions,
-                    "prediction_type": pred.prediction_type,
-                    "expires_in_minutes": int((pred.expires_at - datetime.now()).total_seconds() / 60),
-                    "context": pred.context
-                })
-
-        logger.info("User intent predicted",
-                   predictions_count=len(formatted_predictions))
+        app_monitor.register_application(app_name, event_types)
 
         return {
-            "revolutionary_feature": "AI Intent Prediction",
-            "description": "AI kullanıcının gelecekteki niyetlerini tahmin ediyor!",
-            "prediction_summary": {
-                "total_predictions": len(formatted_predictions),
-                "high_confidence_predictions": len([p for p in formatted_predictions if p["confidence"] > 70]),
-                "prediction_horizon_minutes": prediction_horizon,
-                "context_analyzed": current_context
-            },
-            "predictions": formatted_predictions,
-            "ai_insights": [
-                "Temporal behavior patterns analyzed",
-                "Sequential action patterns detected",
-                "Contextual preferences learned",
-                "Predictive models applied"
-            ]
+            "status": "success",
+            "message": f"Application '{app_name}' registered for monitoring",
+            "app_name": app_name,
+            "event_types": event_types or ["all"],
+            "timestamp": datetime.now().isoformat()
         }
 
     except Exception as e:
-        logger.error("User intent prediction failed", error=str(e))
-        return {"error": f"Intent prediction failed: {str(e)}"}
+        logger.error("Failed to register application", app_name=app_name, error=str(e))
+        return {"error": f"Failed to register application: {str(e)}"}
 
 @mcp.tool()
-async def proactive_assistance() -> str:
-    """
-    REVOLUTIONARY FEATURE: Offers proactive help before user requests.
-
-    AI can now predict user needs in advance and offer help!
-
-    Returns:
-        Proactive assistance suggestions
-    """
-    try:
-        engine = get_predictive_engine()
-        suggestions = engine.get_proactive_suggestions()
-
-        # Önerileri zenginleştir
-        enhanced_suggestions = []
-        for suggestion in suggestions:
-            enhanced_suggestion = {
-                **suggestion,
-                "timestamp": datetime.now().isoformat(),
-                "priority": "high" if suggestion.get("confidence", 0) > 0.8 else "medium",
-                "category": suggestion.get("type", "general")
-            }
-            enhanced_suggestions.append(enhanced_suggestion)
-
-        # Additional intelligent recommendations
-        insights = engine.get_user_insights()
-
-        # General system recommendations
-        if insights.get("total_actions", 0) == 0:
-            enhanced_suggestions.append({
-                "type": "welcome",
-                "message": "Welcome! The AI system will start learning your behaviors. After recording a few actions, I can provide personalized recommendations for you.",
-                "confidence": 1.0,
-                "priority": "high",
-                "category": "onboarding",
-                "timestamp": datetime.now().isoformat()
-            })
-        elif insights.get("total_actions", 0) < 10:
-            enhanced_suggestions.append({
-                "type": "learning",
-                "message": f"Şu ana kadar {insights['total_actions']} aksiyon kaydedildi. Daha iyi öneriler için daha fazla etkileşim gerekiyor.",
-                "confidence": 0.8,
-                "priority": "medium",
-                "category": "learning_progress",
-                "timestamp": datetime.now().isoformat()
-            })
-        else:
-            # Detaylı analiz önerileri
-            if insights.get('most_common_actions'):
-                most_common = list(insights['most_common_actions'].keys())[0]
-                enhanced_suggestions.append({
-                    "type": "productivity_insight",
-                    "message": f"Toplam {insights['total_actions']} aksiyon kaydedildi. En çok '{most_common}' aksiyonu yapıyorsunuz.",
-                    "confidence": 0.9,
-                    "priority": "medium",
-                    "category": "analytics",
-                    "timestamp": datetime.now().isoformat()
-                })
-
-            # Time-based recommendations
-            if insights.get('peak_activity_hours'):
-                peak_hour = insights['peak_activity_hours'][0][0]
-                enhanced_suggestions.append({
-                    "type": "time_insight",
-                    "message": f"Your most active hour is {peak_hour}:00. You can work more efficiently during this time.",
-                    "confidence": 0.7,
-                    "priority": "low",
-                    "category": "time_management",
-                    "timestamp": datetime.now().isoformat()
-                })
-
-        # System status recommendations
-        monitor = get_global_monitor()
-        if monitor and not monitor.is_monitoring:
-            enhanced_suggestions.append({
-                "type": "system_suggestion",
-                "message": "Real-time monitoring is disabled. You can start continuous monitoring for better analysis and insights.",
-                "confidence": 0.8,
-                "priority": "medium",
-                "category": "system",
-                "timestamp": datetime.now().isoformat()
-            })
-
-        logger.info("Proactive assistance generated",
-                   suggestions_count=len(enhanced_suggestions))
-
-        result = {
-            "revolutionary_feature": "AI Proactive Assistance",
-            "description": "AI kullanıcının ihtiyaçlarını önceden tahmin ediyor ve yardım öneriyor!",
-            "total_suggestions": len(enhanced_suggestions),
-            "suggestions": enhanced_suggestions,
-            "generated_at": datetime.now().isoformat(),
-            "capabilities": [
-                "Behavioral pattern analysis",
-                "Predictive assistance",
-                "Productivity insights",
-                "Time management suggestions",
-                "Advanced system optimization recommendations"
-            ]
-        }
-
-        import json
-        return json.dumps(result, ensure_ascii=False, indent=2)
-
-    except Exception as e:
-        logger.error("Proactive assistance failed", error=str(e))
-        error_result = {
-            "error": f"Proactive assistance failed: {str(e)}",
-            "suggestions": [],
-            "total_suggestions": 0
-        }
-        import json
-        return json.dumps(error_result, ensure_ascii=False, indent=2)
-
-@mcp.tool()
-async def record_user_action(
-    action_type: str,
-    target: str,
-    coordinates: Optional[List[int]] = None,
-    text_content: Optional[str] = None,
-    app_context: Optional[str] = None,
-    window_title: Optional[str] = None
+async def broadcast_application_change(
+    app_name: str,
+    event_type: str,
+    event_data: Dict[str, Any]
 ) -> Dict[str, Any]:
     """
-    REVOLUTIONARY FEATURE: Records user action and feeds learning system.
+    Broadcast a custom application change event to AI clients.
 
     Args:
-        action_type: Action type ('click', 'type', 'scroll', 'app_switch')
-        target: Target element or application
-        coordinates: Click coordinates [x, y]
-        text_content: Typed text
-        app_context: Application context
-        window_title: Window title
+        app_name: Name of the application (e.g., "Blender")
+        event_type: Type of event (e.g., "scene_change", "object_modification")
+        event_data: Additional event data
 
     Returns:
-        Recording status and learning information
+        Broadcast status and information
     """
     try:
-        engine = get_predictive_engine()
+        app_monitor = get_global_app_monitor()
+        if not app_monitor:
+            return {"error": "Application monitor not initialized"}
 
-        # Create UserAction
-        action = UserAction(
-            timestamp=datetime.now(),
-            action_type=action_type,
-            target=target,
-            coordinates=tuple(coordinates) if coordinates else None,
-            text_content=text_content,
-            app_context=app_context,
-            window_title=window_title
-        )
-
-        # Record action
-        engine.record_action(action)
-
-        # Current statistics
-        insights = engine.get_user_insights()
-
-        logger.info("User action recorded and learned",
-                   action_type=action_type,
-                   target=target,
-                   total_actions=insights.get("total_actions", 0))
+        app_monitor.broadcast_application_change(app_name, event_type, event_data)
 
         return {
-            "revolutionary_feature": "AI Action Learning",
-            "description": "AI kullanıcı aksiyonunu kaydetti ve öğrendi!",
-            "action_recorded": {
-                "type": action_type,
-                "target": target,
-                "timestamp": action.timestamp.isoformat(),
-                "context": {
-                    "app": app_context,
-                    "window": window_title,
-                    "coordinates": coordinates
-                }
-            },
-            "learning_progress": {
-                "total_actions_learned": insights.get("total_actions", 0),
-                "patterns_discovered": insights.get("total_patterns", 0),
-                "learning_status": "Active"
-            },
-            "ai_response": "Action recorded and behavior patterns updated!"
+            "status": "success",
+            "message": f"Event '{event_type}' broadcasted for application '{app_name}'",
+            "app_name": app_name,
+            "event_type": event_type,
+            "event_data": event_data,
+            "timestamp": datetime.now().isoformat()
         }
 
     except Exception as e:
-        logger.error("User action recording failed", error=str(e))
-        return {"error": f"Action recording failed: {str(e)}"}
+        logger.error("Failed to broadcast application change",
+                    app_name=app_name, event_type=event_type, error=str(e))
+        return {"error": f"Failed to broadcast application change: {str(e)}"}
+
+@mcp.tool()
+async def start_application_monitoring() -> Dict[str, Any]:
+    """
+    Start application monitoring system.
+
+    Returns:
+        Monitoring startup status and configuration
+    """
+    try:
+        app_monitor = get_global_app_monitor()
+        if not app_monitor:
+            return {"error": "Application monitor not initialized"}
+
+        result = app_monitor.start_monitoring()
+
+        return {
+            **result,
+            "feature": "Application Monitoring",
+            "description": "AI is now monitoring application changes and events!",
+            "capabilities": [
+                "Window focus detection",
+                "Application switching tracking",
+                "Custom event broadcasting",
+                "Multi-application support"
+            ]
+        }
+
+    except Exception as e:
+        logger.error("Failed to start application monitoring", error=str(e))
+        return {"error": f"Application monitoring could not be started: {str(e)}"}
+
+@mcp.tool()
+async def stop_application_monitoring() -> Dict[str, Any]:
+    """
+    Stop application monitoring system.
+
+    Returns:
+        Monitoring stop status and statistics
+    """
+    try:
+        app_monitor = get_global_app_monitor()
+        if not app_monitor:
+            return {"error": "Application monitor not found"}
+
+        result = app_monitor.stop_monitoring()
+
+        return {
+            **result,
+            "message": "Application monitoring stopped",
+            "note": "Event history preserved"
+        }
+
+    except Exception as e:
+        logger.error("Failed to stop application monitoring", error=str(e))
+        return {"error": f"Application monitoring could not be stopped: {str(e)}"}
+
+@mcp.tool()
+async def get_recent_application_events(
+    limit: int = 10,
+    app_name: Optional[str] = None
+) -> List[Dict[str, Any]]:
+    """
+    Get recent application events.
+
+    Args:
+        limit: Maximum number of events to return
+        app_name: Filter events by application name (optional)
+
+    Returns:
+        List of recent application events
+    """
+    try:
+        app_monitor = get_global_app_monitor()
+        if not app_monitor:
+            return [{"error": "Application monitor not found"}]
+
+        events = app_monitor.get_recent_events(limit, app_name)
+
+        return events
+
+    except Exception as e:
+        logger.error("Failed to get recent application events", error=str(e))
+        return [{"error": f"Failed to get events: {str(e)}"}]
+
+
+
+
+
+
 
 @mcp.tool()
 async def capture_and_analyze(capture_mode: Literal["all", "monitor", "window", "region"] = "all", monitor_number: int = 1, capture_active_window: bool = False, region: Optional[Dict[str, int]] = None, output_format: Literal["png", "jpeg"] = "png", analysis_prompt: str = "Please analyze this screenshot and provide information about its content.", max_tokens: int = 300) -> str:
@@ -1082,8 +1022,8 @@ if __name__ == "__main__":
     print("   - UI Element Detection - Interface element recognition and interaction")
     print("   - OCR Text Extraction - Screen text reading")
     print("   - Smart Click System - Natural language clicking")
-    print("   - Predictive Intelligence - Behavior learning and prediction")
-    print("   - Proactive Assistance - Predictive assistance system")
+    print("   - Application Monitoring - Multi-application context awareness")
+    print("   - Event Broadcasting - Real-time application event relay")
     print()
 
     print("Revolutionary MCP Tools:")
@@ -1098,13 +1038,17 @@ if __name__ == "__main__":
     print("      * smart_click() - Click with natural language")
     print("      * extract_text_from_screen() - Extract text from screen")
     print()
-    print("   Predictive AI:")
-    print("      * learn_user_patterns() - Learn behavior patterns")
-    print("      * predict_user_intent() - Predict user intent")
-    print("      * proactive_assistance() - Offer proactive help")
-    print("      * record_user_action() - Record user action")
+    print("   Application Monitoring:")
+    print("      * start_application_monitoring() - Start app monitoring")
+    print("      * get_active_application() - Get active app context")
+    print("      * register_application_events() - Register app for monitoring")
+    print("      * broadcast_application_change() - Broadcast app events")
+    print()
+    print("   Enhanced Features:")
+    print("      * capture_and_analyze() - AI-powered screenshot analysis")
+    print("      * list_tools() - Complete tool documentation")
     print()
 
-    logger.info("Starting Revolutionary MCP Server with Real-Time Vision")
+    logger.info("Starting Revolutionary MCP Server with Real-Time Vision and Application Monitoring")
     print("Server starting...")
     mcp.run(transport='stdio')
