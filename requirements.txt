@@ -20,3 +20,5 @@ pandas
 # Logging and utilities
 structlog
 tenacity
+# System monitoring dependencies
+psutil

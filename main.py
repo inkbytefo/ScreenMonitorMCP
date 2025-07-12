@@ -11,6 +11,7 @@ import asyncio
 import structlog
 from datetime import datetime
 import numpy as np
+import time
 
 from mcp.server.fastmcp import FastMCP
 from ai_providers import OpenAIProvider
@@ -18,6 +19,14 @@ from ui_detection import get_ui_detector, get_smart_clicker
 from application_monitor import ApplicationMonitor, ApplicationEvent, get_global_app_monitor, set_global_app_monitor
 from smart_monitoring import SmartMonitor, SmartMonitoringConfig, SmartEvent, get_global_smart_monitor, set_global_smart_monitor
 from video_recorder import VideoRecorder, VideoAnalyzer, VideoRecordingConfig, VideoAnalysisResult
+from cache_manager import get_cache_manager, shutdown_cache
+from conversation_context import get_conversation_manager
+from system_metrics import get_metrics_manager
+from batch_processor import get_batch_processor, BatchPriority
+from image_optimizer import get_image_optimizer, OptimizationConfig
+from error_recovery import get_error_recovery_manager, with_recovery
+from platform_support import get_platform_manager
+from input_simulator import get_input_simulator, KeyboardInput, MouseInput, MouseButton
 
 
 # --- Configuration ---
@@ -361,6 +370,12 @@ async def smart_click(
         Click result and element information
     """
     try:
+        # Get metrics manager for enhanced functionality
+        metrics_manager = get_metrics_manager()
+
+        # Increment counter
+        metrics_manager.increment_counter("smart_clicks")
+
         clicker = get_smart_clicker()
 
         if dry_run:
@@ -420,6 +435,12 @@ async def extract_text_from_screen(
     try:
         import mss
         import cv2
+
+        # Get metrics manager for enhanced functionality
+        metrics_manager = get_metrics_manager()
+
+        # Increment counter
+        metrics_manager.increment_counter("ui_detections")
 
         # Take screenshot
         with mss.mss() as sct:
@@ -733,10 +754,36 @@ async def capture_and_analyze(capture_mode: Literal["all", "monitor", "window", 
         return "OpenAI sağlayıcısı yapılandırılmamış veya API Anahtarı eksik. Lütfen API anahtarını ayarlayın."
     
     try:
+        # Get managers for enhanced functionality
+        cache_manager = get_cache_manager()
+        metrics_manager = get_metrics_manager()
+
+        # Increment counters
+        metrics_manager.increment_counter("screenshots")
+        metrics_manager.increment_counter("analyses")
+
+        # Generate cache key for analysis
+        import hashlib
+        cache_key_data = f"{capture_mode}_{monitor_number}_{capture_active_window}_{region}_{analysis_prompt}"
+        cache_key = hashlib.md5(cache_key_data.encode()).hexdigest()
+
+        # Check cache for recent analysis (1 minute TTL for same parameters)
+        cached_result = cache_manager.get("analyses", cache_key)
+        if cached_result:
+            logger.info("Analysis served from cache", cache_key=cache_key[:8])
+            return f"📋 [CACHED] {cached_result}"
+
         img_base64, capture_details = _capture_screenshot_to_base64(capture_mode, monitor_number, capture_active_window, region, output_format)
+
+        # Cache the screenshot
+        screenshot_id = f"screenshot_{int(time.time())}"
+        cache_manager.set("screenshots", screenshot_id, img_base64, ttl=300)  # 5 minutes
+
         model_to_use = DEFAULT_OPENAI_MODEL
-        # Use provided max_tokens or default from environment
         tokens_to_use = max_tokens if max_tokens is not None else DEFAULT_MAX_TOKENS
+
+        # Track AI provider performance
+        start_time = time.time()
         ai_analysis = await openai_provider.analyze_image(
             image_base64=img_base64,
             prompt=analysis_prompt,
@@ -744,8 +791,28 @@ async def capture_and_analyze(capture_mode: Literal["all", "monitor", "window", 
             output_format=output_format,
             max_tokens=tokens_to_use
         )
-        return f"Screenshot successfully captured and analyzed. Analysis: {ai_analysis}. Capture details: {capture_details}. Model used: {model_to_use}. Provider used: openai"
+        response_time = time.time() - start_time
+
+        # Update provider metrics
+        metrics_manager.update_provider_status("openai", "active", response_time)
+
+        # Cache the analysis result
+        result = f"Screenshot successfully captured and analyzed. Analysis: {ai_analysis}. Capture details: {capture_details}. Model used: {model_to_use}. Provider used: openai"
+        cache_manager.set("analyses", cache_key, result, ttl=60)  # 1 minute
+
+        logger.info("Screenshot analysis completed",
+                   response_time=response_time,
+                   model=model_to_use,
+                   cached=False)
+
+        return result
+
     except Exception as e:
+        # Update provider metrics on error
+        metrics_manager = get_metrics_manager()
+        metrics_manager.update_provider_status("openai", "error", error=str(e))
+
+        logger.error("Screenshot capture and analysis failed", error=str(e))
         return f"Screenshot capture and analysis failed. Error: {str(e)}. Please check parameters or try again later."
 
 @mcp.tool()
@@ -852,6 +919,581 @@ async def record_and_analyze(
         logger.error("Video recording and analysis failed", error=str(e))
         return f"Video kaydı ve analizi başarısız oldu: {str(e)}. Lütfen parametreleri kontrol edin ve tekrar deneyin."
 
+# === NEW ENHANCED FEATURES ===
+
+@mcp.tool()
+async def query_vision_about_current_view(
+    question: str,
+    context: Optional[str] = None,
+    use_cache: bool = True,
+    conversation_id: Optional[str] = None
+) -> str:
+    """
+    REVOLUTIONARY FEATURE: Query AI about current screen view with conversation context.
+
+    This tool captures the current screen and asks the AI a specific question about it,
+    while maintaining conversation context and history.
+
+    Args:
+        question: The question to ask about the current screen view
+        context: Additional context to provide to the AI
+        use_cache: Whether to use cached screenshots (default: True)
+        conversation_id: Optional conversation ID to maintain context
+
+    Returns:
+        AI's response to the question about the current screen view
+    """
+    try:
+        # Get managers
+        cache_manager = get_cache_manager()
+        conversation_manager = get_conversation_manager()
+        metrics_manager = get_metrics_manager()
+
+        # Increment counter
+        metrics_manager.increment_counter("analyses")
+
+        # Generate cache key for screenshot
+        screenshot_cache_key = f"current_view_{int(time.time() // 60)}"  # Cache for 1 minute
+
+        screenshot_base64 = None
+        if use_cache:
+            screenshot_base64 = cache_manager.get("screenshots", screenshot_cache_key)
+
+        if not screenshot_base64:
+            # Capture new screenshot
+            with mss.mss() as sct:
+                screenshot = sct.grab(sct.monitors[0])
+                img = Image.frombytes("RGB", screenshot.size, screenshot.bgra, "raw", "BGRX")
+
+                # Convert to base64
+                buffer = BytesIO()
+                img.save(buffer, format="PNG")
+                screenshot_base64 = base64.b64encode(buffer.getvalue()).decode('utf-8')
+
+                # Cache the screenshot
+                if use_cache:
+                    cache_manager.set("screenshots", screenshot_cache_key, screenshot_base64, ttl=300)  # 5 minutes
+
+        # Get conversation context if conversation_id provided
+        conversation_context = ""
+        if conversation_id:
+            context_data = conversation_manager.get_conversation_context(conversation_id)
+            if "conversation_summary" in context_data:
+                conversation_context = f"\n\nConversation Context:\n{context_data['conversation_summary']}"
+
+        # Build prompt
+        full_prompt = f"Question about current screen view: {question}"
+        if context:
+            full_prompt += f"\n\nAdditional context: {context}"
+        full_prompt += conversation_context
+
+        # Check OpenAI provider
+        if not openai_provider:
+            return "OpenAI sağlayıcısı yapılandırılmamış veya API Anahtarı eksik. Lütfen API anahtarını ayarlayın."
+
+        # Analyze with AI
+        start_time = time.time()
+        analysis = await openai_provider.analyze_image(
+            screenshot_base64,
+            full_prompt,
+            model=DEFAULT_OPENAI_MODEL,
+            max_tokens=1000
+        )
+        response_time = time.time() - start_time
+
+        # Update provider status
+        metrics_manager.update_provider_status("openai", "active", response_time)
+
+        # Add to conversation if conversation_id provided
+        if conversation_id:
+            conversation_manager.add_message(
+                conversation_id,
+                "user",
+                question,
+                context_data={"context": context},
+                screenshot_id=screenshot_cache_key
+            )
+            conversation_manager.add_message(
+                conversation_id,
+                "assistant",
+                analysis,
+                context_data={"response_time": response_time}
+            )
+
+        logger.info("Vision query completed",
+                   question=question[:50] + "..." if len(question) > 50 else question,
+                   conversation_id=conversation_id,
+                   response_time=response_time,
+                   use_cache=use_cache)
+
+        return analysis
+
+    except Exception as e:
+        logger.error("Vision query failed", error=str(e))
+        return f"Vision query failed: {str(e)}"
+
+@mcp.tool()
+async def get_system_metrics() -> str:
+    """
+    REVOLUTIONARY FEATURE: Get comprehensive system metrics and health status.
+
+    Returns real-time system health, performance metrics, cache statistics,
+    provider status, and performance insights.
+
+    Returns:
+        Comprehensive system metrics report in formatted text
+    """
+    try:
+        metrics_manager = get_metrics_manager()
+
+        # Get individual components to avoid errors
+        try:
+            system_health = metrics_manager.get_system_health()
+        except Exception:
+            system_health = {"status": "no_data", "message": "System health data unavailable"}
+
+        try:
+            performance_metrics = metrics_manager.get_performance_metrics()
+        except Exception:
+            performance_metrics = {"error": "Performance metrics unavailable"}
+
+        try:
+            cache_stats = get_cache_manager().get_stats()
+        except Exception:
+            cache_stats = {"error": "Cache stats unavailable"}
+
+        # Format response
+        response = "## 📊 System Metrics Dashboard\n\n"
+
+        # System Health
+        health = system_health
+        status_emoji = "🟢" if health["status"] == "healthy" else "🟡" if health["status"] == "warning" else "🔴"
+        response += f"### {status_emoji} System Health: {health['status'].upper()}\n"
+
+        if health.get("warnings"):
+            response += "**Warnings:**\n"
+            for warning in health["warnings"]:
+                response += f"- ⚠️ {warning}\n"
+
+        # Current metrics
+        if "current_metrics" in health:
+            metrics = health["current_metrics"]
+            response += f"\n**Current Performance:**\n"
+            response += f"- CPU Usage: {metrics['cpu_percent']:.1f}%\n"
+            response += f"- Memory Usage: {metrics['memory_percent']:.1f}% ({metrics['memory_used_mb']:.0f}MB used)\n"
+            response += f"- Disk Usage: {metrics['disk_usage_percent']:.1f}%\n"
+
+        response += f"- Uptime: {health['uptime_seconds']:.0f} seconds\n"
+        response += f"- Monitoring Active: {'✅' if health['monitoring_active'] else '❌'}\n\n"
+
+        # Performance Metrics
+        perf = performance_metrics
+        response += "### 🚀 Performance Metrics\n"
+        response += f"- Uptime: {perf['uptime_hours']} hours\n"
+
+        counters = perf["performance_counters"]
+        response += f"- Screenshots: {counters['total_screenshots']} ({counters['screenshots_per_hour']:.1f}/hour)\n"
+        response += f"- AI Analyses: {counters['total_analyses']} ({counters['analyses_per_hour']:.1f}/hour)\n"
+        response += f"- UI Detections: {counters['total_ui_detections']}\n"
+        response += f"- Smart Clicks: {counters['total_smart_clicks']}\n\n"
+
+        # Cache Performance
+        cache = perf["cache_performance"]
+        response += "### 💾 Cache Performance\n"
+        response += f"- Hit Rate: {cache['hit_rate']}% (Target: >80%)\n"
+        response += f"- Total Hits: {cache['hits']}\n"
+        response += f"- Total Misses: {cache['misses']}\n"
+        response += f"- Memory Usage: {cache['memory_usage_mb']}MB\n"
+        response += f"- Disk Usage: {cache['disk_usage_mb']}MB\n"
+        response += f"- Active Entries: {cache['memory_entries']}\n\n"
+
+        # Provider Status
+        if perf["provider_status"]:
+            response += "### 🤖 AI Provider Status\n"
+            for name, status in perf["provider_status"].items():
+                status_emoji = "🟢" if status["status"] == "active" else "🔴"
+                response += f"- {status_emoji} {name.upper()}: {status['total_requests']} requests\n"
+                response += f"  - Error Rate: {status['error_rate']:.1f}%\n"
+                response += f"  - Avg Response: {status['avg_response_time']:.2f}s\n"
+
+        # Cache Statistics
+        response += f"\n### 💾 Cache Performance\n"
+        if "error" not in cache_stats:
+            response += f"- Hit Rate: {cache_stats.get('hit_rate', 0)}%\n"
+            response += f"- Memory Usage: {cache_stats.get('memory_usage_mb', 0)} MB\n"
+            response += f"- Total Entries: {cache_stats.get('total_entries', 0)}\n"
+        else:
+            response += f"- Status: {cache_stats['error']}\n"
+
+        response += f"\n*Report generated at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}*"
+
+        logger.info("System metrics report generated")
+        return response
+
+    except Exception as e:
+        logger.error("System metrics retrieval failed", error=str(e))
+        return f"System metrics retrieval failed: {str(e)}"
+
+@mcp.tool()
+async def get_cache_stats() -> str:
+    """
+    Get detailed cache performance statistics.
+
+    Returns:
+        Detailed cache statistics and performance metrics
+    """
+    try:
+        cache_manager = get_cache_manager()
+        stats = cache_manager.get_stats()
+
+        response = "## 💾 Cache Statistics\n\n"
+        response += f"**Performance:**\n"
+        response += f"- Hit Rate: {stats['hit_rate']}% (Target: >80%)\n"
+        response += f"- Total Hits: {stats['hits']}\n"
+        response += f"- Total Misses: {stats['misses']}\n"
+        response += f"- Evictions: {stats['evictions']}\n\n"
+
+        response += f"**Memory Usage:**\n"
+        response += f"- Active Entries: {stats['memory_entries']}\n"
+        response += f"- Memory Usage: {stats['memory_usage_mb']} MB\n"
+        response += f"- Disk Usage: {stats['disk_usage_mb']} MB\n\n"
+
+        # Performance assessment
+        if stats['hit_rate'] >= 80:
+            response += "✅ **Cache Performance: EXCELLENT**\n"
+        elif stats['hit_rate'] >= 60:
+            response += "🟡 **Cache Performance: GOOD**\n"
+        else:
+            response += "🔴 **Cache Performance: NEEDS IMPROVEMENT**\n"
+
+        return response
+
+    except Exception as e:
+        logger.error("Cache stats retrieval failed", error=str(e))
+        return f"Cache stats retrieval failed: {str(e)}"
+
+@mcp.tool()
+async def clear_cache(namespace: Optional[str] = None) -> str:
+    """
+    Clear cache entries.
+
+    Args:
+        namespace: Optional namespace to clear (if None, clears all cache)
+
+    Returns:
+        Cache clearing result
+    """
+    try:
+        cache_manager = get_cache_manager()
+
+        if namespace:
+            cache_manager.clear(namespace)
+            message = f"Cache cleared for namespace: {namespace}"
+        else:
+            cache_manager.clear()
+            message = "All cache entries cleared"
+
+        logger.info("Cache cleared", namespace=namespace)
+        return f"✅ {message}"
+
+    except Exception as e:
+        logger.error("Cache clearing failed", error=str(e))
+        return f"Cache clearing failed: {str(e)}"
+
+# === PHASE 2 & 3 ENHANCED FEATURES ===
+
+@mcp.tool()
+async def get_batch_processor_stats() -> str:
+    """
+    Get batch processor statistics and performance metrics.
+
+    Returns:
+        Detailed batch processing statistics
+    """
+    try:
+        batch_processor = get_batch_processor()
+        stats = batch_processor.get_statistics()
+
+        response = "## 🔄 Batch Processor Statistics\n\n"
+        response += f"**Performance:**\n"
+        response += f"- Total Requests: {stats['total_requests']}\n"
+        response += f"- Total Batches: {stats['total_batches']}\n"
+        response += f"- Average Batch Size: {stats['average_batch_size']}\n"
+        response += f"- Average Processing Time: {stats['average_processing_time']}s\n\n"
+
+        response += f"**Current Status:**\n"
+        response += f"- Pending Requests: {stats['pending_requests']}\n"
+        response += f"- Processing Batches: {stats['processing_batches']}\n"
+        response += f"- Completed Results: {stats['completed_results']}\n\n"
+
+        response += f"**Configuration:**\n"
+        config = stats['configuration']
+        response += f"- Max Batch Size: {config['max_batch_size']}\n"
+        response += f"- Max Wait Time: {config['max_wait_time']}s\n"
+        response += f"- Max Concurrent Batches: {config['max_concurrent_batches']}\n"
+        response += f"- Priority Queue: {'✅ Enabled' if config['priority_queue_enabled'] else '❌ Disabled'}\n"
+
+        return response
+
+    except Exception as e:
+        logger.error(f"Batch processor stats failed: {str(e)}")
+        return f"❌ Batch processor stats failed: {str(e)}"
+
+@mcp.tool()
+async def optimize_image(
+    image_data: str,
+    preset: str = "web",
+    target_size_kb: Optional[int] = None,
+    max_width: Optional[int] = None,
+    max_height: Optional[int] = None,
+    quality: int = 85
+) -> str:
+    """
+    Optimize an image with advanced compression and quality control.
+
+    Args:
+        image_data: Base64 encoded image data
+        preset: Optimization preset (web, thumbnail, high_quality, minimal_size)
+        target_size_kb: Target file size in KB
+        max_width: Maximum width in pixels
+        max_height: Maximum height in pixels
+        quality: JPEG quality (1-100)
+
+    Returns:
+        Optimization result with statistics
+    """
+    try:
+        image_optimizer = get_image_optimizer()
+
+        if preset in image_optimizer.optimization_presets:
+            result = image_optimizer.optimize_with_preset(image_data, preset)
+        else:
+            config = OptimizationConfig(
+                target_size_kb=target_size_kb,
+                max_width=max_width,
+                max_height=max_height,
+                quality=quality
+            )
+            result = image_optimizer.optimize_image(image_data, config)
+
+        if result.success:
+            response = "## 🖼️ Image Optimization Complete\n\n"
+            response += f"**Results:**\n"
+            response += f"- Original Size: {result.original_size_bytes:,} bytes ({result.original_size_bytes/1024:.1f} KB)\n"
+            response += f"- Optimized Size: {result.optimized_size_bytes:,} bytes ({result.optimized_size_bytes/1024:.1f} KB)\n"
+            response += f"- Compression Ratio: {result.compression_ratio:.1f}%\n"
+            response += f"- Processing Time: {result.processing_time:.2f}s\n\n"
+
+            response += f"**Changes:**\n"
+            response += f"- Original Dimensions: {result.original_dimensions[0]}x{result.original_dimensions[1]}\n"
+            response += f"- Optimized Dimensions: {result.optimized_dimensions[0]}x{result.optimized_dimensions[1]}\n"
+            response += f"- Format Changed: {'✅ Yes' if result.format_changed else '❌ No'}\n"
+            response += f"- Dimensions Changed: {'✅ Yes' if result.dimensions_changed else '❌ No'}\n"
+
+            return response
+        else:
+            return f"❌ Image optimization failed: {result.error}"
+
+    except Exception as e:
+        logger.error(f"Image optimization failed: {str(e)}")
+        return f"❌ Image optimization failed: {str(e)}"
+
+@mcp.tool()
+async def get_error_recovery_stats() -> str:
+    """
+    Get error recovery system statistics and health status.
+
+    Returns:
+        Comprehensive error recovery statistics
+    """
+    try:
+        error_manager = get_error_recovery_manager()
+        stats = error_manager.get_error_statistics()
+
+        response = "## 🛡️ Error Recovery Statistics\n\n"
+        response += f"**Overall Performance:**\n"
+        response += f"- Total Errors: {stats['total_errors']}\n"
+        response += f"- Recovered Errors: {stats['recovered_errors']}\n"
+        response += f"- Critical Errors: {stats['critical_errors']}\n"
+        response += f"- Emergency Stops: {stats['emergency_stops']}\n"
+        response += f"- Recovery Rate: {stats['recovery_rate']:.1f}%\n\n"
+
+        response += f"**Recent Activity:**\n"
+        response += f"- Recent Errors (1h): {stats['recent_errors_count']}\n\n"
+
+        response += f"**Component Statistics:**\n"
+        for component, comp_stats in stats['component_statistics'].items():
+            response += f"- **{component.title()}:**\n"
+            response += f"  - Total: {comp_stats['total_errors']}\n"
+            response += f"  - Recovered: {comp_stats['recovered_errors']}\n"
+            response += f"  - Critical: {comp_stats['critical_errors']}\n"
+
+        response += f"\n**System Health:**\n"
+        response += f"- Registered Fallbacks: {len(stats['registered_fallbacks'])}\n"
+        response += f"- Health Checks: {len(stats['registered_health_checks'])}\n"
+
+        if stats['recovery_rate'] >= 80:
+            response += "\n🟢 **System Health: EXCELLENT**"
+        elif stats['recovery_rate'] >= 60:
+            response += "\n🟡 **System Health: GOOD**"
+        else:
+            response += "\n🔴 **System Health: NEEDS ATTENTION**"
+
+        return response
+
+    except Exception as e:
+        logger.error(f"Error recovery stats failed: {str(e)}")
+        return f"❌ Error recovery stats failed: {str(e)}"
+
+@mcp.tool()
+async def get_platform_info() -> str:
+    """
+    Get comprehensive platform and system information.
+
+    Returns:
+        Detailed platform information and capabilities
+    """
+    try:
+        platform_manager = get_platform_manager()
+        platform_info = platform_manager.get_platform_info()
+
+        response = "## 🖥️ Platform Information\n\n"
+        response += f"**System Details:**\n"
+        response += f"- Platform: {platform_info['detected_platform'].title()}\n"
+        response += f"- System: {platform_info['system']}\n"
+        response += f"- Release: {platform_info['release']}\n"
+        response += f"- Machine: {platform_info['machine']}\n"
+        response += f"- Processor: {platform_info['processor']}\n"
+        response += f"- Node: {platform_info['node']}\n\n"
+
+        response += f"**Python Environment:**\n"
+        response += f"- Python Version: {platform_info['python_version']}\n"
+        response += f"- Architecture: {platform_info['architecture'][0]} ({platform_info['architecture'][1]})\n\n"
+
+        response += f"**Available Features:**\n"
+        features = platform_info.get('available_features', [])
+        if features:
+            for feature in features:
+                response += f"- ✅ {feature.replace('_', ' ').title()}\n"
+        else:
+            response += "- ❌ No platform-specific features available\n"
+
+        response += f"\n**Feature Availability:**\n"
+        feature_checks = [
+            ("window_management", "Window Management"),
+            ("screen_capture", "Screen Capture"),
+            ("mouse_control", "Mouse Control"),
+            ("keyboard_input", "Keyboard Input")
+        ]
+
+        for feature_key, feature_name in feature_checks:
+            available = platform_manager.is_feature_available(feature_key)
+            status = "✅ Available" if available else "❌ Not Available"
+            response += f"- {feature_name}: {status}\n"
+
+        return response
+
+    except Exception as e:
+        logger.error(f"Platform info failed: {str(e)}")
+        return f"❌ Platform info failed: {str(e)}"
+
+@mcp.tool()
+async def simulate_input(
+    input_type: str,
+    text: Optional[str] = None,
+    keys: Optional[List[str]] = None,
+    modifiers: Optional[List[str]] = None,
+    x: Optional[int] = None,
+    y: Optional[int] = None,
+    button: str = "left",
+    clicks: int = 1
+) -> str:
+    """
+    Simulate keyboard or mouse input with advanced capabilities.
+
+    Args:
+        input_type: Type of input ('keyboard', 'mouse', 'hotkey', 'text')
+        text: Text to type (for text input)
+        keys: List of keys to press (for keyboard/hotkey input)
+        modifiers: List of modifier keys (ctrl, alt, shift, cmd)
+        x: X coordinate (for mouse input)
+        y: Y coordinate (for mouse input)
+        button: Mouse button (left, right, middle)
+        clicks: Number of clicks (for mouse input)
+
+    Returns:
+        Input simulation result
+    """
+    try:
+        input_simulator = get_input_simulator()
+
+        if input_type == "text" and text:
+            success = input_simulator.simulate_text_input(text)
+            return f"✅ Text input simulated: '{text}'" if success else "❌ Text input failed"
+
+        elif input_type == "keyboard" and keys:
+            config = KeyboardInput(keys=keys, modifiers=modifiers or [])
+            success = input_simulator.simulate_keyboard_input(config)
+            return f"✅ Keyboard input simulated: {'+'.join((modifiers or []) + keys)}" if success else "❌ Keyboard input failed"
+
+        elif input_type == "hotkey" and keys:
+            success = input_simulator.simulate_hotkey(keys, modifiers or [])
+            return f"✅ Hotkey simulated: {'+'.join((modifiers or []) + keys)}" if success else "❌ Hotkey failed"
+
+        elif input_type == "mouse" and x is not None and y is not None:
+            mouse_button = MouseButton.LEFT
+            if button.lower() == "right":
+                mouse_button = MouseButton.RIGHT
+            elif button.lower() == "middle":
+                mouse_button = MouseButton.MIDDLE
+
+            success = input_simulator.simulate_click(x, y, mouse_button, clicks)
+            return f"✅ Mouse click simulated at ({x}, {y})" if success else "❌ Mouse click failed"
+
+        else:
+            return "❌ Invalid input parameters. Please specify valid input_type and required parameters."
+
+    except Exception as e:
+        logger.error(f"Input simulation failed: {str(e)}")
+        return f"❌ Input simulation failed: {str(e)}"
+
+@mcp.tool()
+async def get_input_capabilities() -> str:
+    """
+    Get input simulation capabilities and backend information.
+
+    Returns:
+        Input simulation capabilities and status
+    """
+    try:
+        input_simulator = get_input_simulator()
+        capabilities = input_simulator.get_capabilities()
+
+        response = "## ⌨️ Input Simulation Capabilities\n\n"
+        response += f"**Active Backend:** {capabilities['active_backend']}\n\n"
+
+        response += f"**Available Backends:**\n"
+        for backend, available in capabilities['available_backends'].items():
+            status = "✅ Available" if available else "❌ Not Available"
+            response += f"- {backend}: {status}\n"
+
+        response += f"\n**Supported Features:**\n"
+        features = capabilities['supported_features']
+        for feature, supported in features.items():
+            status = "✅ Supported" if supported else "❌ Not Supported"
+            feature_name = feature.replace('_', ' ').title()
+            response += f"- {feature_name}: {status}\n"
+
+        response += f"\n**Statistics:**\n"
+        response += f"- Input History Size: {capabilities['input_history_size']}\n"
+        response += f"- Max History: {capabilities['max_history']}\n"
+
+        return response
+
+    except Exception as e:
+        logger.error(f"Input capabilities failed: {str(e)}")
+        return f"❌ Input capabilities failed: {str(e)}"
+
 # Running the server
 if __name__ == "__main__":
     # Windows Unicode encoding fix
@@ -877,6 +1519,9 @@ if __name__ == "__main__":
     print("   - OCR Text Extraction - Screen text reading")
     print("   - Application Monitoring - Multi-application context awareness")
     print("   - AI Analysis - Intelligent event analysis")
+    print("   - 🆕 Advanced Cache System - TTL-based caching with metrics")
+    print("   - 🆕 Conversation Context - Chat history and context preservation")
+    print("   - 🆕 System Metrics - Real-time health monitoring")
     print()
 
     print("🚀 REVOLUTIONARY MCP TOOLS:")
@@ -891,10 +1536,24 @@ if __name__ == "__main__":
     print("      * extract_text_from_screen() - Extract text from screen")
     print()
     print("   📊 Core Features:")
-    print("      * capture_and_analyze() - AI-powered screenshot analysis")
+    print("      * capture_and_analyze() - AI-powered screenshot analysis (with cache)")
     print("      * record_and_analyze() - AI-powered video recording and analysis")
     print("      * get_active_application() - Get active app context")
     print("      * list_tools() - Complete tool documentation")
+    print()
+    print("   🆕 Enhanced Features:")
+    print("      * query_vision_about_current_view() - Ask AI about current screen")
+    print("      * get_system_metrics() - Comprehensive system health dashboard")
+    print("      * get_cache_stats() - Cache performance statistics")
+    print("      * clear_cache() - Cache management")
+    print()
+    print("   🚀 Phase 2 & 3 Features:")
+    print("      * get_batch_processor_stats() - Batch processing statistics")
+    print("      * optimize_image() - Advanced image optimization")
+    print("      * get_error_recovery_stats() - Error recovery system status")
+    print("      * get_platform_info() - Cross-platform system information")
+    print("      * simulate_input() - Advanced input simulation")
+    print("      * get_input_capabilities() - Input system capabilities")
     print()
 
     logger.info("Starting Revolutionary MCP Server")
