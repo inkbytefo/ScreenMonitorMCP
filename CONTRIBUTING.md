@@ -1,60 +1,69 @@
 # 🤝 Contributing to ScreenMonitorMCP
 
-ScreenMonitorMCP projesine katkıda bulunduğunuz için teşekkür ederiz! Bu rehber, projeye nasıl katkıda bulunabileceğinizi açıklar.
+Thank you for your interest in contributing to **ScreenMonitorMCP**! This guide explains how you can get involved and contribute effectively.
 
-## 🚀 Katkı Türleri
+---
 
-### 🐛 Bug Reports (Hata Raporları)
-- Hataları GitHub Issues'da rapor edin
-- Detaylı açıklama ve yeniden üretme adımları ekleyin
-- Sistem bilgilerinizi (OS, Python versiyonu) belirtin
+## 🚀 Types of Contributions
 
-### 💡 Feature Requests (Özellik İstekleri)
-- Yeni özellik önerilerinizi Issues'da paylaşın
-- Özelliğin neden gerekli olduğunu açıklayın
-- Mümkünse kullanım senaryoları ekleyin
+### 🐛 Bug Reports
+- Report bugs via [GitHub Issues](https://github.com/inkbytefo/ScreenMonitorMCP/issues)
+- Include clear steps to reproduce
+- Share your environment details (OS, Python version, etc.)
 
-### 🔧 Code Contributions (Kod Katkıları)
-- Fork yapın ve feature branch oluşturun
-- Kod standartlarına uyun
-- Test ekleyin
-- Pull Request açın
+### 💡 Feature Requests
+- Share new feature ideas in Issues
+- Explain why the feature is useful
+- Add example use cases if possible
+
+### 🔧 Code Contributions
+- Fork the repository and create a feature branch
+- Follow the coding standards below
+- Add relevant tests
+- Submit a Pull Request (PR)
+
+---
 
 ## 🛠️ Development Setup
 
-### 1. Repository'yi Fork Edin
+### 1. Clone the Repository
+
 ```bash
-git clone https://github.com/yourusername/ScreenMonitorMCP.git
+git clone https://github.com/inkbytefo/ScreenMonitorMCP.git
 cd ScreenMonitorMCP
 ```
 
-### 2. Development Environment Kurun
+### 2. Set Up Development Environment
+
 ```bash
-# Virtual environment oluşturun
+# Create virtual environment
 python -m venv venv
 source venv/bin/activate  # Linux/Mac
-# veya
-venv\Scripts\activate  # Windows
+# or
+venv\Scripts\activate     # Windows
 
-# Dependencies yükleyin
+# Install dependencies
 pip install -r requirements.txt
 ```
 
-### 3. Environment Variables Ayarlayın
+### 3. Configure Environment Variables
+
 ```bash
 cp .env.example .env
-# .env dosyasını düzenleyin
+# Edit the .env file with your local settings
 ```
 
-## 📝 Kod Standartları
+---
 
-### Python Code Style
-- PEP 8 standartlarına uyun
-- Type hints kullanın
-- Docstring'leri ekleyin
-- Meaningful variable names kullanın
+## 🧑‍💻 Code Standards
 
-### Commit Messages
+### Python Style
+- Follow **PEP 8**
+- Use **type hints**
+- Add **docstrings** and meaningful variable names
+
+### Commit Message Format
+
 ```
 feat: add new UI detection algorithm
 fix: resolve OCR encoding issue
@@ -63,131 +72,146 @@ test: add unit tests for monitoring
 ```
 
 ### Branch Naming
+
 ```
-feature/smart-click-enhancement
+feature/ui-detection-enhancement
 bugfix/ocr-unicode-error
 docs/contributing-guide
 ```
 
-## 🧪 Testing
+---
 
-### Unit Tests Çalıştırın
+## 🦪 Testing Guidelines
+
+### Run Unit Tests
+
 ```bash
-# Tüm testleri çalıştır
+# Run all tests
 python -m pytest
 
-# Belirli test dosyası
+# Run a specific test file
 python test_revolutionary_features.py
 ```
 
 ### Manual Testing
+
 ```bash
-# Sunucuyu test edin
+# Start the main server
 python main.py
 
-# MCP client ile test edin
-# Claude Desktop veya başka MCP client kullanın
+# Connect using a MCP-compatible client (e.g., Claude Desktop)
 ```
-
-## 📋 Pull Request Süreci
-
-### 1. Branch Oluşturun
-```bash
-git checkout -b feature/your-feature-name
-```
-
-### 2. Değişikliklerinizi Yapın
-- Kod yazın
-- Test ekleyin
-- Dokümantasyon güncelleyin
-
-### 3. Commit ve Push
-```bash
-git add .
-git commit -m "feat: add your feature description"
-git push origin feature/your-feature-name
-```
-
-### 4. Pull Request Açın
-- GitHub'da Pull Request açın
-- Detaylı açıklama yazın
-- İlgili Issue'ları bağlayın
-
-## 🎯 Katkı Alanları
-
-### 🔥 Öncelikli Alanlar
-- **UI Detection**: Yeni UI element algılama algoritmaları
-- **OCR Improvements**: Daha iyi metin tanıma
-- **Performance**: Monitoring performansı optimizasyonu
-- **Cross-platform**: Linux/Mac desteği
-- **Documentation**: Türkçe/İngilizce dokümantasyon
-
-### 🧠 AI/ML Katkıları
-- Behavior prediction algoritmaları
-- Smart detection iyileştirmeleri
-- Computer vision optimizasyonları
-
-### 🛠️ Infrastructure
-- CI/CD pipeline
-- Docker containerization
-- Package management
-
-## 📚 Dokümantasyon
-
-### README Güncellemeleri
-- Yeni özellikler için kullanım örnekleri
-- Installation guide iyileştirmeleri
-- Troubleshooting bölümü
-
-### Code Documentation
-- Docstring'ler
-- Type hints
-- Inline comments
-
-## 🐛 Bug Fix Süreci
-
-### 1. Issue Oluşturun
-- Hatayı detaylı açıklayın
-- Yeniden üretme adımları
-- Beklenen vs gerçek davranış
-
-### 2. Fix Geliştirin
-- Minimal değişiklik yapın
-- Test ekleyin
-- Edge case'leri düşünün
-
-### 3. Test Edin
-- Unit test yazın
-- Manual test yapın
-- Regression test
-
-## 🔒 Security
-
-### Güvenlik Açıkları
-- Güvenlik açıklarını özel olarak rapor edin
-- Public issue açmayın
-- Email: security@screenmonitormcp.com
-
-### API Keys ve Secrets
-- .env dosyalarını commit etmeyin
-- Hardcoded secrets kullanmayın
-- .gitignore'u kontrol edin
-
-## 📞 İletişim
-
-### GitHub
-- Issues: Hata raporları ve özellik istekleri
-- Discussions: Genel tartışmalar
-- Pull Requests: Kod katkıları
-
-### Community
-- Discord: [Yakında]
-- Twitter: [Yakında]
-
-## 🏆 Contributors
-
-Tüm katkıda bulunanlar README'de listelenir ve projeye değerli katkıları için teşekkür edilir.
 
 ---
 
-**🚀 Birlikte ScreenMonitorMCP'yi daha da devrimsel hale getirelim!**
+## 📋 Pull Request Process
+
+1. **Create a Feature Branch**
+   ```bash
+   git checkout -b feature/your-feature-name
+   ```
+
+2. **Make Your Changes**
+   - Write code
+   - Add/Update tests
+   - Update docs if necessary
+
+3. **Commit and Push**
+   ```bash
+   git add .
+   git commit -m "feat: describe your feature"
+   git push origin feature/your-feature-name
+   ```
+
+4. **Open a Pull Request**
+   - Describe what you changed
+   - Link to any related issue(s)
+
+---
+
+## 🎯 Contribution Focus Areas
+
+### 🔥 Priority Areas
+- **UI Detection**: New detection algorithms
+- **OCR Improvements**: Better text recognition
+- **Performance**: Optimize system performance
+- **Cross-Platform Support**: Improve Linux/macOS compatibility
+- **Documentation**: Improve English guides and usage examples
+
+### 🧠 AI/ML Contributions
+- Behavior prediction models
+- Smart detection enhancements
+- Optimizing computer vision modules
+
+### 🔧 Infrastructure
+- CI/CD improvements
+- Dockerization
+- Dependency/package management
+
+---
+
+## 📚 Documentation Standards
+
+### What to Document
+- New features: how to use them
+- Setup and install instructions
+- Troubleshooting guidance
+
+### In Code
+- Use **docstrings**
+- Add **type hints**
+- Comment complex logic inline
+
+---
+
+## 🐛 Bug Fix Workflow
+
+1. **Create an Issue**
+   - Describe the bug clearly
+   - Share reproduction steps
+   - Explain expected vs actual behavior
+
+2. **Develop the Fix**
+   - Keep changes minimal and clear
+   - Cover edge cases
+
+3. **Test It**
+   - Add unit tests
+   - Manually verify the fix
+   - Check for regressions
+
+---
+
+## 🔒 Security Best Practices
+
+### Reporting Security Issues
+- Do **not** post public issues for vulnerabilities
+- Report them privately via:  
+  📧 `security@screenmonitormcp.com`
+
+### Secrets & Keys
+- Never commit `.env` files or API secrets
+- Check `.gitignore` includes sensitive files
+
+---
+
+## 📲 Communication
+
+### GitHub
+- **Issues**: Bug reports, feature requests
+- **Discussions**: General ideas and questions
+- **Pull Requests**: Code changes and reviews
+
+### Community
+- Discord: *Coming Soon*
+- Twitter: *Coming Soon*
+
+---
+
+## 🏆 Contributors
+
+All contributors will be listed in the README and credited for their work. Thank you for making ScreenMonitorMCP better!
+
+---
+
+**🚀 Let’s build something revolutionary together!**
