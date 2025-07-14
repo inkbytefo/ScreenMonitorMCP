@@ -554,8 +554,11 @@ async def extract_text_from_screen(
         elif not detector.ocr_engine.easyocr_reader and ocr_engine == "easyocr":
             ocr_engine_used = "easyocr_not_available"
         elif ocr_engine == "tesseract":
-            from .ui_detection import TESSERACT_AVAILABLE
-            if not TESSERACT_AVAILABLE:
+            try:
+                from .ui_detection import TESSERACT_AVAILABLE
+                if not TESSERACT_AVAILABLE:
+                    ocr_engine_used = "tesseract_not_available"
+            except ImportError:
                 ocr_engine_used = "tesseract_not_available"
 
         logger.info("Text extraction completed",
@@ -574,8 +577,8 @@ async def extract_text_from_screen(
                 "requested_engine": ocr_engine,
                 "screenshot_size": screenshot.shape if 'screenshot' in locals() else None,
                 "available_engines": {
-                    "tesseract": getattr(__import__('ui_detection'), 'TESSERACT_AVAILABLE', False),
-                    "easyocr": getattr(__import__('ui_detection'), 'EASYOCR_AVAILABLE', False)
+                    "tesseract": getattr(__import__('screenmonitormcp.ui_detection', fromlist=['TESSERACT_AVAILABLE']), 'TESSERACT_AVAILABLE', False),
+                    "easyocr": getattr(__import__('screenmonitormcp.ui_detection', fromlist=['EASYOCR_AVAILABLE']), 'EASYOCR_AVAILABLE', False)
                 }
             },
             "capabilities": [
@@ -1149,8 +1152,8 @@ async def get_system_metrics() -> str:
             response += f"- Memory Usage: {metrics['memory_percent']:.1f}% ({metrics['memory_used_mb']:.0f}MB used)\n"
             response += f"- Disk Usage: {metrics['disk_usage_percent']:.1f}%\n"
 
-        response += f"- Uptime: {health['uptime_seconds']:.0f} seconds\n"
-        response += f"- Monitoring Active: {'✅' if health['monitoring_active'] else '❌'}\n\n"
+        response += f"- Uptime: {health.get('uptime_seconds', 0):.0f} seconds\n"
+        response += f"- Monitoring Active: {'✅' if health.get('monitoring_active', False) else '❌'}\n\n"
 
         # Performance Metrics
         perf = performance_metrics
