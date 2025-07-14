@@ -554,7 +554,7 @@ async def extract_text_from_screen(
         elif not detector.ocr_engine.easyocr_reader and ocr_engine == "easyocr":
             ocr_engine_used = "easyocr_not_available"
         elif ocr_engine == "tesseract":
-            from ui_detection import TESSERACT_AVAILABLE
+            from .ui_detection import TESSERACT_AVAILABLE
             if not TESSERACT_AVAILABLE:
                 ocr_engine_used = "tesseract_not_available"
 
