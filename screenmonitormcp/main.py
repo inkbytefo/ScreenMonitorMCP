@@ -2417,44 +2417,74 @@ For more information, visit: https://github.com/inkbytefo/ScreenMonitorMCP
 
     args = parser.parse_args()
 
-    # Print banner
+    # Print banner (safe for all terminals)
+    def safe_print(text):
+        """Safely print text, handling Unicode encoding issues."""
+        try:
+            print(text)
+        except UnicodeEncodeError:
+            # Remove emojis and special characters for problematic terminals
+            import re
+            clean_text = re.sub(r'[^\x00-\x7F]+', '', text)
+            print(clean_text)
+
     print("=" * 60)
-    print("🚀 ScreenMonitorMCP - Revolutionary AI Vision Server")
+    safe_print("🚀 ScreenMonitorMCP - Revolutionary AI Vision Server")
     print("   Give AI real-time sight and screen interaction!")
     print("=" * 60)
     print()
 
     # Start the server based on transport
+    def safe_print(text):
+        """Safely print text, handling Unicode encoding issues."""
+        try:
+            print(text)
+        except UnicodeEncodeError:
+            # Remove emojis and special characters for problematic terminals
+            import re
+            clean_text = re.sub(r'[^\x00-\x7F]+', '', text)
+            print(clean_text)
+
     if args.transport == "stdio":
-        print("📡 Starting MCP server with stdio transport...")
+        safe_print("📡 Starting MCP server with stdio transport...")
         # Run the existing main logic
         sys.argv = ["screenmonitormcp"]  # Reset argv for the main logic
         # Import and run the main server logic here
         # This will be the existing code that starts the MCP server
         run_mcp_server()
     elif args.transport == "websocket":
-        print(f"🌐 Starting MCP server with websocket transport on {args.host}:{args.port}...")
-        print("⚠️  WebSocket transport is planned for future release")
+        safe_print(f"🌐 Starting MCP server with websocket transport on {args.host}:{args.port}...")
+        safe_print("⚠️  WebSocket transport is planned for future release")
         sys.exit(1)
 
 
 def run_mcp_server():
     """Run the main MCP server logic."""
-    # Print server information
-    print("🔥 ScreenMonitorMCP Server Features:")
-    print("   📊 Smart Monitoring with AI Analysis")
-    print("   🎯 Natural Language UI Interaction")
-    print("   📸 Real-time Screen Capture & Analysis")
-    print("   🎬 Video Recording & Analysis")
-    print("   🔄 Real-time Screen Streaming")
-    print("   🖱️  Advanced Input Simulation")
-    print("   📱 Cross-platform Support")
-    print("   ⚡ Performance Optimization")
+    # Print server information (safe for all terminals)
+    def safe_print(text):
+        """Safely print text, handling Unicode encoding issues."""
+        try:
+            print(text)
+        except UnicodeEncodeError:
+            # Remove emojis and special characters for problematic terminals
+            import re
+            clean_text = re.sub(r'[^\x00-\x7F]+', '', text)
+            print(clean_text)
+
+    safe_print("🔥 ScreenMonitorMCP Server Features:")
+    safe_print("   📊 Smart Monitoring with AI Analysis")
+    safe_print("   🎯 Natural Language UI Interaction")
+    safe_print("   📸 Real-time Screen Capture & Analysis")
+    safe_print("   🎬 Video Recording & Analysis")
+    safe_print("   🔄 Real-time Screen Streaming")
+    safe_print("   🖱️  Advanced Input Simulation")
+    safe_print("   📱 Cross-platform Support")
+    safe_print("   ⚡ Performance Optimization")
     print()
+    safe_print("🔥 Server starting with Smart Monitoring capability...")
+    safe_print("🎯 AI now has enhanced vision and smart interaction!")
 
     logger.info("Starting Revolutionary MCP Server")
-    print("🔥 Server starting with Smart Monitoring capability...")
-    print("🎯 AI now has enhanced vision and smart interaction!")
     mcp.run(transport='stdio')
 
 
