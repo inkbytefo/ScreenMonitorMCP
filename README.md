@@ -31,6 +31,13 @@ Transform your AI assistant from text-only to a visual powerhouse that can:
 - **record_and_analyze()** - Video recording with AI analysis
 - **query_vision_about_current_view()** - Ask AI questions about current screen
 
+### 🆕 Real-time Screen Streaming
+- **start_screen_stream()** - Start real-time base64 screen streaming with performance optimizations
+- **get_stream_frame()** - Get the latest frame from an active stream
+- **get_stream_status()** - Monitor stream health, performance, and statistics
+- **stop_screen_stream()** - Stop streaming and cleanup resources
+- **list_active_streams()** - List all active streams with their status
+
 ### System Performance
 - **get_system_metrics()** - Comprehensive system health dashboard
 - **get_cache_stats()** - Cache performance statistics
@@ -89,13 +96,36 @@ await query_vision_about_current_view('What errors are visible on this page?')
 
 # Extract text from screen
 await extract_text_from_screen()
+
+# 🆕 Real-time screen streaming
+stream_result = await start_screen_stream(
+    fps=5,
+    quality=70,
+    format="jpeg",
+    scale=0.5,
+    change_detection=True,
+    adaptive_quality=True
+)
+stream_id = stream_result['stream_id']
+
+# Get latest frame from stream
+frame = await get_stream_frame(stream_id)
+# frame['frame']['data'] contains base64 encoded image
+
+# Monitor stream performance
+status = await get_stream_status(stream_id)
+print(f"FPS: {status['stream_info']['stats']['current_fps']}")
+
+# Stop streaming
+await stop_screen_stream(stream_id)
 ```
 
-## Available Tools (21 Total)
+## Available Tools (26 Total)
 
 **Smart Monitoring (6 tools)**: Real-time screen monitoring with AI analysis
 **UI Interaction (2 tools)**: Natural language screen control
 **Visual Analysis (3 tools)**: AI-powered image and video analysis
+**🆕 Real-time Streaming (5 tools)**: Base64 screen streaming with performance optimizations
 **System Performance (7 tools)**: Performance monitoring and optimization
 **Input Simulation (2 tools)**: Keyboard and mouse automation
 **Utility (1 tool)**: Tool documentation and listing
