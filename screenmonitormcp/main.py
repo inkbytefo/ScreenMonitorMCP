@@ -2438,11 +2438,6 @@ For more information, visit: https://github.com/inkbytefo/ScreenMonitorMCP
         sys.exit(1)
 
 
-if __name__ == "__main__":
-    # If run directly, use the old behavior
-    run_mcp_server()
-
-
 def run_mcp_server():
     """Run the main MCP server logic."""
     # Print server information
@@ -2461,3 +2456,8 @@ def run_mcp_server():
     print("🔥 Server starting with Smart Monitoring capability...")
     print("🎯 AI now has enhanced vision and smart interaction!")
     mcp.run(transport='stdio')
+
+
+if __name__ == "__main__":
+    # If run directly, use the old behavior
+    run_mcp_server()
