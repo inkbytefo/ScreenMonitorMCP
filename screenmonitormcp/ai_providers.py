@@ -3,6 +3,9 @@ import base64
 from io import BytesIO
 import openai
 from fastapi import HTTPException
+import logging
+
+logger = logging.getLogger(__name__)
 
 class AIServiceProvider(ABC):
     @abstractmethod
@@ -34,6 +37,8 @@ class OpenAIProvider(AIServiceProvider):
                         "image_url": {"url": f"data:image/{output_format};base64,{img_base64}"},
                     })
 
+            logger.info(f"Making API call with model: {model}, max_tokens: {max_tokens}")
+
             response = self.client.chat.completions.create(
                 model=model,
                 messages=[
@@ -44,11 +49,48 @@ class OpenAIProvider(AIServiceProvider):
                 ],
                 max_tokens=max_tokens,
             )
-            return response.choices[0].message.content
+
+            # Debug logging
+            logger.info(f"API response received: {type(response)}")
+            logger.info(f"Response attributes: {dir(response) if response else 'None'}")
+
+            # Enhanced error checking for response
+            if not response:
+                raise ValueError("API response is None")
+
+            if not hasattr(response, 'choices'):
+                logger.error(f"Response object has no 'choices' attribute. Available attributes: {dir(response)}")
+                raise ValueError("API response has no choices attribute")
+
+            if not response.choices:
+                logger.error(f"Response choices is None or empty: {response.choices}")
+                raise ValueError("API response has no choices")
+
+            if len(response.choices) == 0:
+                raise ValueError("API response choices list is empty")
+
+            choice = response.choices[0]
+            if not hasattr(choice, 'message') or not choice.message:
+                raise ValueError("API response choice has no message")
+
+            if not hasattr(choice.message, 'content') or choice.message.content is None:
+                raise ValueError("API response message has no content")
+
+            return choice.message.content
+
         except openai.APIError as e:
+            error_detail = f"OpenAI API Error: {str(e)}"
+            if hasattr(e, 'response') and e.response:
+                try:
+                    error_detail = f"OpenAI API Error: {e.response.json()}"
+                except:
+                    error_detail = f"OpenAI API Error: {str(e)}"
             raise HTTPException(
                 status_code=e.status_code if hasattr(e, 'status_code') else 500,
-                detail=f"OpenAI API Error: {e.response.json() if hasattr(e, 'response') and hasattr(e.response, 'json') else str(e)}"
+                detail=error_detail
             )
+        except ValueError as e:
+            # Handle our custom validation errors
+            raise HTTPException(status_code=500, detail=f"OpenAI response validation failed: {str(e)}")
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"OpenAI analysis failed: {str(e)}")
