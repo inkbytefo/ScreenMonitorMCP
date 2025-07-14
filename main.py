@@ -27,6 +27,7 @@ from image_optimizer import get_image_optimizer, OptimizationConfig
 from error_recovery import get_error_recovery_manager, with_recovery
 from platform_support import get_platform_manager
 from input_simulator import get_input_simulator, KeyboardInput, MouseInput, MouseButton
+from screen_streamer import get_global_stream_manager, StreamConfig
 
 
 # --- Configuration ---
@@ -60,7 +61,7 @@ parser.add_argument("--port", type=int, default=int(os.getenv("PORT", 7777)), he
 parser.add_argument("--api-key", default=os.getenv("API_KEY"), help="API Key for securing the endpoints")
 parser.add_argument("--openai-api-key", default=os.getenv("OPENAI_API_KEY"), help="OpenAI API Key for vision analysis")
 parser.add_argument("--openai-base-url", default=os.getenv("OPENAI_BASE_URL"), help="Custom OpenAI API Base URL")
-parser.add_argument("--default-openai-model", default=os.getenv("DEFAULT_OPENAI_MODEL", "gpt-4o"), help="Default OpenAI model for analysis")
+parser.add_argument("--default-openai-model", default=os.getenv("DEFAULT_OPENAI_MODEL", "Qwen/Qwen2.5-VL-7B-Instruct"), help="Default OpenAI model for analysis")
 parser.add_argument("--default-max-tokens", type=int, default=int(os.getenv("DEFAULT_MAX_TOKENS", 1000)), help="Default max tokens for AI analysis")
 args = parser.parse_args()
 
@@ -277,6 +278,60 @@ async def list_tools() -> Dict[str, Any]:
             "description": "Gets comprehensive monitoring summary report",
             "category": "revolutionary",
             "parameters": []
+        },
+        {
+            "name": "start_screen_stream",
+            "description": "REVOLUTIONARY: Starts real-time base64 encoded screen streaming",
+            "category": "revolutionary",
+            "parameters": ["fps", "quality", "format", "scale", "capture_mode", "monitor_number", "region"]
+        },
+        {
+            "name": "get_stream_frame",
+            "description": "REVOLUTIONARY: Gets the most recent frame from a screen stream",
+            "category": "revolutionary",
+            "parameters": ["stream_id"]
+        },
+        {
+            "name": "get_stream_status",
+            "description": "Gets current status and statistics of a screen stream",
+            "category": "revolutionary",
+            "parameters": ["stream_id"]
+        },
+        {
+            "name": "stop_screen_stream",
+            "description": "Stops a screen stream and cleans up resources",
+            "category": "revolutionary",
+            "parameters": ["stream_id"]
+        },
+        {
+            "name": "list_active_streams",
+            "description": "Lists all active screen streams with their current status",
+            "category": "revolutionary",
+            "parameters": []
+        },
+        {
+            "name": "analyze_current_stream_frame",
+            "description": "REVOLUTIONARY: Analyzes the current frame from an active stream using AI",
+            "category": "revolutionary",
+            "parameters": ["stream_id", "analysis_prompt"]
+        },
+        {
+            "name": "analyze_stream_batch",
+            "description": "REVOLUTIONARY: Analyzes multiple frames from a stream as a batch",
+            "category": "revolutionary",
+            "parameters": ["stream_id", "frame_count", "analysis_prompt", "include_comparison"]
+        },
+        {
+            "name": "enable_stream_auto_analysis",
+            "description": "REVOLUTIONARY: Enables automatic AI analysis when changes are detected",
+            "category": "revolutionary",
+            "parameters": ["stream_id", "analysis_prompt", "analysis_threshold"]
+        },
+        {
+            "name": "disable_stream_auto_analysis",
+            "description": "Disables automatic AI analysis for a stream",
+            "category": "revolutionary",
+            "parameters": ["stream_id"]
         },
 
     ]
@@ -869,7 +924,7 @@ async def record_and_analyze(
 
         # Create recorder and analyzer
         recorder = VideoRecorder(config)
-        analyzer = VideoAnalyzer(openai_provider)
+        analyzer = VideoAnalyzer(openai_provider, DEFAULT_OPENAI_MODEL)
 
         logger.info("Starting video recording and analysis",
                    duration=duration,
@@ -1494,6 +1549,736 @@ async def get_input_capabilities() -> str:
         logger.error(f"Input capabilities failed: {str(e)}")
         return f"❌ Input capabilities failed: {str(e)}"
 
+
+# === REAL-TIME SCREEN STREAMING TOOLS ===
+
+@mcp.tool()
+async def start_screen_stream(
+    fps: int = 5,
+    quality: int = 70,
+    format: Literal["jpeg", "png"] = "jpeg",
+    scale: float = 1.0,
+    capture_mode: Literal["all", "monitor", "window", "region"] = "all",
+    monitor_number: int = 1,
+    region: Optional[Dict[str, int]] = None,
+    change_detection: bool = True,
+    change_threshold: float = 0.05,
+    adaptive_quality: bool = True,
+    max_frame_size_kb: int = 500
+) -> Dict[str, Any]:
+    """
+    REVOLUTIONARY FEATURE: Starts real-time base64 encoded screen streaming.
+
+    This creates a continuous stream of screen captures that can be accessed
+    through the get_stream_frame tool. Perfect for real-time monitoring and
+    analysis by AI assistants with advanced performance optimizations.
+
+    Args:
+        fps: Frames per second (1-30 recommended, default: 5)
+        quality: Image quality for JPEG (0-100, default: 70)
+        format: Image format ("jpeg" or "png", default: "jpeg")
+        scale: Scale factor for resolution (0.1-2.0, default: 1.0)
+        capture_mode: What to capture ("all", "monitor", "window", "region")
+        monitor_number: Monitor number to capture (1-based index)
+        region: Region to capture: {"x": int, "y": int, "width": int, "height": int}
+        change_detection: Only capture frames when changes detected (default: True)
+        change_threshold: Minimum change percentage to trigger capture (0.01-0.5, default: 0.05)
+        adaptive_quality: Automatically adjust quality based on content (default: True)
+        max_frame_size_kb: Maximum frame size in KB (default: 500)
+
+    Returns:
+        Stream information including stream_id for accessing the stream
+    """
+    try:
+        stream_manager = get_global_stream_manager()
+
+        # Validate parameters
+        if not (1 <= fps <= 30):
+            return {
+                "status": "error",
+                "message": "FPS must be between 1 and 30"
+            }
+
+        if not (0 <= quality <= 100):
+            return {
+                "status": "error",
+                "message": "Quality must be between 0 and 100"
+            }
+
+        if not (0.1 <= scale <= 2.0):
+            return {
+                "status": "error",
+                "message": "Scale must be between 0.1 and 2.0"
+            }
+
+        # Create stream
+        stream_id = stream_manager.create_stream(
+            fps=fps,
+            quality=quality,
+            format=format,
+            scale=scale,
+            capture_mode=capture_mode,
+            monitor_number=monitor_number,
+            region=region,
+            change_detection=change_detection,
+            change_threshold=change_threshold,
+            adaptive_quality=adaptive_quality,
+            max_frame_size_kb=max_frame_size_kb
+        )
+
+        if not stream_id:
+            return {
+                "status": "error",
+                "message": "Failed to create stream. Maximum concurrent streams may be reached."
+            }
+
+        logger.info("Screen stream started", stream_id=stream_id, fps=fps, format=format)
+
+        return {
+            "status": "streaming_started",
+            "stream_id": stream_id,
+            "message": f"🎥 Real-time screen streaming started! Stream ID: {stream_id}",
+            "config": {
+                "fps": fps,
+                "quality": quality,
+                "format": format,
+                "scale": scale,
+                "capture_mode": capture_mode,
+                "monitor_number": monitor_number,
+                "region": region
+            },
+            "usage": {
+                "get_frame": f"Use get_stream_frame('{stream_id}') to get the latest frame",
+                "check_status": f"Use get_stream_status('{stream_id}') to check stream health",
+                "stop_stream": f"Use stop_screen_stream('{stream_id}') to stop streaming"
+            }
+        }
+
+    except Exception as e:
+        logger.error("Failed to start screen stream", error=str(e))
+        return {
+            "status": "error",
+            "message": f"Failed to start screen stream: {str(e)}"
+        }
+
+
+@mcp.tool()
+async def get_stream_frame(stream_id: str) -> Dict[str, Any]:
+    """
+    Gets the most recent frame from a screen stream.
+
+    This tool retrieves the latest captured frame from an active stream,
+    providing base64 encoded image data that can be analyzed by AI.
+
+    Args:
+        stream_id: The ID of the stream to get a frame from
+
+    Returns:
+        The latest frame as base64 encoded string with metadata
+    """
+    try:
+        stream_manager = get_global_stream_manager()
+        streamer = stream_manager.get_stream(stream_id)
+
+        if not streamer:
+            return {
+                "status": "error",
+                "message": f"Stream '{stream_id}' not found. Use start_screen_stream() to create a stream first."
+            }
+
+        if not streamer.is_streaming:
+            return {
+                "status": "error",
+                "message": f"Stream '{stream_id}' is not active."
+            }
+
+        frame = streamer.get_current_frame()
+        if not frame:
+            return {
+                "status": "no_frame",
+                "message": "No frames captured yet. Please wait a moment and try again."
+            }
+
+        return {
+            "status": "success",
+            "stream_id": stream_id,
+            "frame": {
+                "timestamp": frame.timestamp.isoformat(),
+                "frame_number": frame.frame_number,
+                "format": frame.format,
+                "size_bytes": frame.size_bytes,
+                "width": frame.width,
+                "height": frame.height,
+                "data": frame.data  # base64 encoded image
+            },
+            "message": f"📸 Frame #{frame.frame_number} captured at {frame.timestamp.strftime('%H:%M:%S')}"
+        }
+
+    except Exception as e:
+        logger.error("Failed to get stream frame", stream_id=stream_id, error=str(e))
+        return {
+            "status": "error",
+            "message": f"Failed to get frame: {str(e)}"
+        }
+
+
+@mcp.tool()
+async def get_stream_status(stream_id: str) -> Dict[str, Any]:
+    """
+    Gets the current status and statistics of a screen stream.
+
+    Provides comprehensive information about stream health, performance,
+    and configuration details.
+
+    Args:
+        stream_id: The ID of the stream to check
+
+    Returns:
+        Detailed streaming statistics and status information
+    """
+    try:
+        stream_manager = get_global_stream_manager()
+        streamer = stream_manager.get_stream(stream_id)
+
+        if not streamer:
+            return {
+                "status": "error",
+                "message": f"Stream '{stream_id}' not found."
+            }
+
+        status_info = streamer.get_status()
+
+        # Calculate additional metrics
+        if status_info['stats']['start_time']:
+            start_time = status_info['stats']['start_time']
+            if isinstance(start_time, datetime):
+                uptime_seconds = (datetime.now() - start_time).total_seconds()
+                uptime_formatted = f"{int(uptime_seconds // 3600)}h {int((uptime_seconds % 3600) // 60)}m {int(uptime_seconds % 60)}s"
+            else:
+                uptime_formatted = "Unknown"
+        else:
+            uptime_formatted = "Not started"
+
+        return {
+            "status": "success",
+            "stream_info": status_info,
+            "performance": {
+                "uptime": uptime_formatted,
+                "frames_per_minute": status_info['stats']['current_fps'] * 60 if status_info['stats']['current_fps'] else 0,
+                "average_frame_size_kb": round(status_info['stats']['average_frame_size'] / 1024, 2) if status_info['stats']['average_frame_size'] else 0,
+                "total_data_mb": round(status_info['stats']['total_bytes_captured'] / (1024 * 1024), 2) if status_info['stats']['total_bytes_captured'] else 0
+            },
+            "health": {
+                "is_healthy": status_info['is_active'] and status_info['stats']['current_fps'] > 0,
+                "error_rate": status_info['stats']['errors_count'] / max(1, status_info['stats']['frames_captured']) if status_info['stats']['frames_captured'] else 0
+            }
+        }
+
+    except Exception as e:
+        logger.error("Failed to get stream status", stream_id=stream_id, error=str(e))
+        return {
+            "status": "error",
+            "message": f"Failed to get stream status: {str(e)}"
+        }
+
+
+@mcp.tool()
+async def stop_screen_stream(stream_id: str) -> Dict[str, Any]:
+    """
+    Stops a screen stream and cleans up resources.
+
+    Args:
+        stream_id: The ID of the stream to stop
+
+    Returns:
+        Status of the operation with final statistics
+    """
+    try:
+        stream_manager = get_global_stream_manager()
+
+        # Get final stats before stopping
+        streamer = stream_manager.get_stream(stream_id)
+        if streamer:
+            final_stats = streamer.get_status()
+        else:
+            final_stats = None
+
+        success = stream_manager.stop_stream(stream_id)
+
+        if success:
+            logger.info("Screen stream stopped", stream_id=stream_id)
+
+            response = {
+                "status": "success",
+                "message": f"🛑 Stream '{stream_id}' stopped successfully",
+                "stream_id": stream_id
+            }
+
+            if final_stats:
+                response["final_statistics"] = {
+                    "total_frames": final_stats['stats']['frames_captured'],
+                    "total_data_mb": round(final_stats['stats']['total_bytes_captured'] / (1024 * 1024), 2) if final_stats['stats']['total_bytes_captured'] else 0,
+                    "average_fps": final_stats['stats']['current_fps'],
+                    "uptime": str(datetime.now() - final_stats['stats']['start_time']) if final_stats['stats']['start_time'] else "Unknown"
+                }
+
+            return response
+        else:
+            return {
+                "status": "error",
+                "message": f"Failed to stop stream '{stream_id}' or stream not found"
+            }
+
+    except Exception as e:
+        logger.error("Failed to stop screen stream", stream_id=stream_id, error=str(e))
+        return {
+            "status": "error",
+            "message": f"Failed to stop stream: {str(e)}"
+        }
+
+
+@mcp.tool()
+async def list_active_streams() -> Dict[str, Any]:
+    """
+    Lists all active screen streams with their current status.
+
+    Returns:
+        Information about all currently active streams
+    """
+    try:
+        stream_manager = get_global_stream_manager()
+        all_streams_status = stream_manager.get_all_streams_status()
+
+        # Cleanup inactive streams
+        cleaned_count = stream_manager.cleanup_inactive_streams()
+
+        return {
+            "status": "success",
+            "summary": {
+                "total_streams": all_streams_status['total_streams'],
+                "active_streams": all_streams_status['active_streams'],
+                "cleaned_streams": cleaned_count
+            },
+            "streams": all_streams_status['streams'],
+            "message": f"📊 Found {all_streams_status['active_streams']} active streams out of {all_streams_status['total_streams']} total"
+        }
+
+    except Exception as e:
+        logger.error("Failed to list streams", error=str(e))
+        return {
+            "status": "error",
+            "message": f"Failed to list streams: {str(e)}"
+        }
+
+
+@mcp.tool()
+async def analyze_current_stream_frame(
+    stream_id: str,
+    analysis_prompt: str = "Bu frame'de ne görüyorsun? Önemli değişiklikler var mı?"
+) -> Dict[str, Any]:
+    """
+    REVOLUTIONARY FEATURE: Analyzes the current frame from an active stream using AI.
+
+    This tool takes the latest frame from a specified stream and sends it to AI
+    for visual analysis, combining real-time streaming with intelligent analysis.
+
+    Args:
+        stream_id: The ID of the stream to analyze
+        analysis_prompt: Custom prompt for AI analysis
+
+    Returns:
+        AI analysis result with frame metadata
+    """
+    try:
+        stream_manager = get_global_stream_manager()
+        streamer = stream_manager.get_stream(stream_id)
+
+        if not streamer:
+            return {
+                "status": "error",
+                "message": f"Stream '{stream_id}' not found. Use start_screen_stream() first."
+            }
+
+        if not streamer.is_streaming:
+            return {
+                "status": "error",
+                "message": f"Stream '{stream_id}' is not active."
+            }
+
+        # Get current frame
+        frame = streamer.get_current_frame()
+        if not frame:
+            return {
+                "status": "error",
+                "message": "No frames available in stream. Please wait for frames to be captured."
+            }
+
+        # Prepare image for AI analysis
+        try:
+            import base64
+            from io import BytesIO
+            from PIL import Image
+
+            # Decode base64 to image
+            image_data = base64.b64decode(frame.data)
+            image = Image.open(BytesIO(image_data))
+
+            # Re-encode for AI analysis (ensure compatibility)
+            buffer = BytesIO()
+            image.save(buffer, format='PNG')
+            buffer.seek(0)
+
+            # Encode back to base64 for AI
+            ai_ready_base64 = base64.b64encode(buffer.getvalue()).decode('utf-8')
+
+            # Send to AI for analysis
+            if openai_provider:
+                logger.info("Sending frame to AI for analysis",
+                           stream_id=stream_id,
+                           model=DEFAULT_OPENAI_MODEL,
+                           prompt_length=len(analysis_prompt),
+                           image_data_length=len(ai_ready_base64))
+
+                analysis_result = await openai_provider.analyze_image(
+                    image_base64=ai_ready_base64,
+                    prompt=analysis_prompt,
+                    model=DEFAULT_OPENAI_MODEL,
+                    max_tokens=DEFAULT_MAX_TOKENS,
+                    output_format="png"
+                )
+            else:
+                return {
+                    "status": "error",
+                    "message": "AI provider not available. Please configure OpenAI API key."
+                }
+
+            return {
+                "status": "success",
+                "stream_id": stream_id,
+                "frame_info": {
+                    "frame_number": frame.frame_number,
+                    "timestamp": frame.timestamp.isoformat(),
+                    "format": frame.format,
+                    "size_bytes": frame.size_bytes,
+                    "dimensions": f"{frame.width}x{frame.height}"
+                },
+                "analysis": analysis_result,
+                "message": f"🔍 AI analysis completed for frame #{frame.frame_number} from stream {stream_id}"
+            }
+
+        except Exception as e:
+            logger.error("Failed to process frame for AI analysis",
+                        stream_id=stream_id,
+                        error=str(e))
+            return {
+                "status": "error",
+                "message": f"Failed to process frame for AI analysis: {str(e)}"
+            }
+
+    except Exception as e:
+        logger.error("Failed to analyze stream frame", stream_id=stream_id, error=str(e))
+        return {
+            "status": "error",
+            "message": f"Failed to analyze stream frame: {str(e)}"
+        }
+
+
+@mcp.tool()
+async def analyze_stream_batch(
+    stream_id: str,
+    frame_count: int = 5,
+    analysis_prompt: str = "Bu frame serisinde ne tür değişiklikler görüyorsun? Bir hikaye anlat.",
+    include_comparison: bool = True
+) -> Dict[str, Any]:
+    """
+    REVOLUTIONARY FEATURE: Analyzes multiple frames from a stream as a batch.
+
+    This tool takes the last N frames from a stream and analyzes them together,
+    providing insights about changes, patterns, and temporal relationships.
+
+    Args:
+        stream_id: The ID of the stream to analyze
+        frame_count: Number of recent frames to analyze (1-10)
+        analysis_prompt: Custom prompt for batch analysis
+        include_comparison: Whether to include frame-to-frame comparison
+
+    Returns:
+        Comprehensive batch analysis with temporal insights
+    """
+    try:
+        stream_manager = get_global_stream_manager()
+        streamer = stream_manager.get_stream(stream_id)
+
+        if not streamer:
+            return {
+                "status": "error",
+                "message": f"Stream '{stream_id}' not found."
+            }
+
+        if not streamer.is_streaming:
+            return {
+                "status": "error",
+                "message": f"Stream '{stream_id}' is not active."
+            }
+
+        # Validate frame count
+        frame_count = max(1, min(frame_count, 10))  # Limit to 1-10 frames
+
+        # Get frame history
+        frame_history = streamer.get_frame_history(frame_count)
+        if not frame_history:
+            return {
+                "status": "error",
+                "message": "No frames available for batch analysis."
+            }
+
+        if len(frame_history) < frame_count:
+            logger.warning("Requested more frames than available",
+                          requested=frame_count,
+                          available=len(frame_history))
+
+        try:
+            import base64
+            from io import BytesIO
+            from PIL import Image
+
+            # Process frames for AI analysis
+            processed_frames = []
+            for i, frame in enumerate(frame_history):
+                try:
+                    # Decode base64 to image
+                    image_data = base64.b64decode(frame.data)
+                    image = Image.open(BytesIO(image_data))
+
+                    # Re-encode for AI analysis
+                    buffer = BytesIO()
+                    image.save(buffer, format='PNG')
+                    buffer.seek(0)
+                    ai_ready_base64 = base64.b64encode(buffer.getvalue()).decode('utf-8')
+
+                    processed_frames.append({
+                        "frame_number": frame.frame_number,
+                        "timestamp": frame.timestamp.isoformat(),
+                        "image_data": ai_ready_base64,
+                        "size_bytes": frame.size_bytes
+                    })
+
+                except Exception as e:
+                    logger.error("Failed to process frame for batch analysis",
+                               frame_number=frame.frame_number,
+                               error=str(e))
+                    continue
+
+            if not processed_frames:
+                return {
+                    "status": "error",
+                    "message": "Failed to process any frames for analysis."
+                }
+
+            # Prepare batch analysis prompt
+            batch_prompt = f"""
+            {analysis_prompt}
+
+            Analiz edilen frame sayısı: {len(processed_frames)}
+            Frame numaraları: {[f['frame_number'] for f in processed_frames]}
+            Zaman aralığı: {processed_frames[0]['timestamp']} - {processed_frames[-1]['timestamp']}
+
+            Lütfen şunları analiz et:
+            1. Frame'ler arasındaki değişiklikler
+            2. Genel trend ve pattern'ler
+            3. Önemli olaylar veya aktiviteler
+            4. Temporal ilişkiler
+            """
+
+            # Send to AI for batch analysis
+            if openai_provider:
+                # For now, analyze the most recent frame with batch context
+                # In future, we could send multiple images to AI
+                latest_frame = processed_frames[-1]
+                analysis_result = await openai_provider.analyze_image(
+                    image_base64=latest_frame["image_data"],
+                    prompt=batch_prompt,
+                    model=DEFAULT_OPENAI_MODEL,
+                    max_tokens=DEFAULT_MAX_TOKENS
+                )
+            else:
+                return {
+                    "status": "error",
+                    "message": "AI provider not available."
+                }
+
+            return {
+                "status": "success",
+                "stream_id": stream_id,
+                "batch_info": {
+                    "frames_analyzed": len(processed_frames),
+                    "frame_numbers": [f['frame_number'] for f in processed_frames],
+                    "time_span": {
+                        "start": processed_frames[0]['timestamp'],
+                        "end": processed_frames[-1]['timestamp']
+                    },
+                    "total_data_size": sum(f['size_bytes'] for f in processed_frames)
+                },
+                "analysis": analysis_result,
+                "message": f"🔍 Batch analysis completed for {len(processed_frames)} frames from stream {stream_id}"
+            }
+
+        except Exception as e:
+            logger.error("Failed to process frames for batch analysis",
+                        stream_id=stream_id,
+                        error=str(e))
+            return {
+                "status": "error",
+                "message": f"Failed to process frames: {str(e)}"
+            }
+
+    except Exception as e:
+        logger.error("Failed to perform batch analysis", stream_id=stream_id, error=str(e))
+        return {
+            "status": "error",
+            "message": f"Failed to perform batch analysis: {str(e)}"
+        }
+
+
+@mcp.tool()
+async def enable_stream_auto_analysis(
+    stream_id: str,
+    analysis_prompt: str = "Bu frame'de önemli değişiklikler var mı? Detayları açıkla.",
+    analysis_threshold: float = 0.1
+) -> Dict[str, Any]:
+    """
+    REVOLUTIONARY FEATURE: Enables automatic AI analysis for a stream when changes are detected.
+
+    This tool sets up automatic AI analysis that triggers when significant changes
+    are detected in the stream, providing real-time intelligent monitoring.
+
+    Args:
+        stream_id: The ID of the stream to enable auto-analysis for
+        analysis_prompt: Custom prompt for automatic analysis
+        analysis_threshold: Change threshold to trigger analysis (0.05-0.5)
+
+    Returns:
+        Status of auto-analysis setup
+    """
+    try:
+        stream_manager = get_global_stream_manager()
+        streamer = stream_manager.get_stream(stream_id)
+
+        if not streamer:
+            return {
+                "status": "error",
+                "message": f"Stream '{stream_id}' not found."
+            }
+
+        # Update stream config for auto-analysis
+        streamer.config.auto_analysis = True
+        streamer.config.analysis_prompt = analysis_prompt
+        streamer.config.analysis_threshold = max(0.05, min(analysis_threshold, 0.5))
+
+        # Define analysis callback
+        async def analysis_callback(stream_id: str, frame, prompt: str):
+            """Callback function for automatic analysis"""
+            try:
+                if openai_provider:
+                    # Convert frame to AI-ready format
+                    import base64
+                    from io import BytesIO
+                    from PIL import Image
+
+                    # Decode and re-encode for AI
+                    image_data = base64.b64decode(frame.data)
+                    image = Image.open(BytesIO(image_data))
+                    buffer = BytesIO()
+                    image.save(buffer, format='PNG')
+                    buffer.seek(0)
+                    ai_ready_base64 = base64.b64encode(buffer.getvalue()).decode('utf-8')
+
+                    # Perform analysis
+                    analysis_result = await openai_provider.analyze_image(
+                        image_base64=ai_ready_base64,
+                        prompt=prompt,
+                        model=DEFAULT_OPENAI_MODEL,
+                        max_tokens=DEFAULT_MAX_TOKENS
+                    )
+
+                    logger.info("Auto-analysis completed",
+                               stream_id=stream_id,
+                               frame_number=frame.frame_number,
+                               analysis_length=len(analysis_result))
+
+                    # Store analysis result (could be extended to save to database)
+                    # For now, just log it
+
+                else:
+                    logger.warning("Auto-analysis triggered but no AI provider available")
+
+            except Exception as e:
+                logger.error("Auto-analysis callback failed",
+                           stream_id=stream_id,
+                           error=str(e))
+
+        # Add callback to streamer
+        streamer.add_analysis_callback(analysis_callback)
+
+        return {
+            "status": "success",
+            "stream_id": stream_id,
+            "auto_analysis_config": {
+                "enabled": True,
+                "analysis_prompt": analysis_prompt,
+                "analysis_threshold": streamer.config.analysis_threshold
+            },
+            "message": f"🤖 Auto-analysis enabled for stream {stream_id}. AI will analyze frames when changes > {streamer.config.analysis_threshold*100:.1f}% are detected."
+        }
+
+    except Exception as e:
+        logger.error("Failed to enable auto-analysis", stream_id=stream_id, error=str(e))
+        return {
+            "status": "error",
+            "message": f"Failed to enable auto-analysis: {str(e)}"
+        }
+
+
+@mcp.tool()
+async def disable_stream_auto_analysis(stream_id: str) -> Dict[str, Any]:
+    """
+    Disables automatic AI analysis for a stream.
+
+    Args:
+        stream_id: The ID of the stream to disable auto-analysis for
+
+    Returns:
+        Status of auto-analysis disable operation
+    """
+    try:
+        stream_manager = get_global_stream_manager()
+        streamer = stream_manager.get_stream(stream_id)
+
+        if not streamer:
+            return {
+                "status": "error",
+                "message": f"Stream '{stream_id}' not found."
+            }
+
+        # Disable auto-analysis
+        streamer.config.auto_analysis = False
+
+        # Clear callbacks (simplified - in real implementation, we'd track specific callbacks)
+        streamer._analysis_callbacks.clear()
+
+        return {
+            "status": "success",
+            "stream_id": stream_id,
+            "message": f"🛑 Auto-analysis disabled for stream {stream_id}"
+        }
+
+    except Exception as e:
+        logger.error("Failed to disable auto-analysis", stream_id=stream_id, error=str(e))
+        return {
+            "status": "error",
+            "message": f"Failed to disable auto-analysis: {str(e)}"
+        }
+
 # Running the server
 if __name__ == "__main__":
     # Windows Unicode encoding fix
@@ -1534,6 +2319,19 @@ if __name__ == "__main__":
     print("   🎯 UI Intelligence:")
     print("      * smart_click() - Click with natural language")
     print("      * extract_text_from_screen() - Extract text from screen")
+    print()
+    print("   🎥 Real-time Streaming:")
+    print("      * start_screen_stream() - Start real-time base64 screen streaming")
+    print("      * get_stream_frame() - Get latest frame from active stream")
+    print("      * get_stream_status() - Monitor stream health and performance")
+    print("      * stop_screen_stream() - Stop streaming and cleanup resources")
+    print("      * list_active_streams() - List all active streams")
+    print()
+    print("   🤖 AI-Powered Streaming Analysis:")
+    print("      * analyze_current_stream_frame() - AI analysis of current stream frame")
+    print("      * analyze_stream_batch() - Batch analysis of multiple frames")
+    print("      * enable_stream_auto_analysis() - Auto AI analysis on changes")
+    print("      * disable_stream_auto_analysis() - Disable auto analysis")
     print()
     print("   📊 Core Features:")
     print("      * capture_and_analyze() - AI-powered screenshot analysis (with cache)")

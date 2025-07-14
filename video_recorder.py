@@ -287,9 +287,10 @@ class VideoRecorder:
 
 class VideoAnalyzer:
     """Video analysis system using AI"""
-    
-    def __init__(self, ai_provider=None):
+
+    def __init__(self, ai_provider=None, default_model: str = "gpt-4o"):
         self.ai_provider = ai_provider
+        self.default_model = default_model
     
     async def analyze_video(self, recorder: VideoRecorder) -> VideoAnalysisResult:
         """Analyze recorded video using AI"""
@@ -448,7 +449,7 @@ class VideoAnalyzer:
                 analysis = await self.ai_provider.analyze_image(
                     image_base64=frame_base64,
                     prompt=moment_prompt,
-                    model="gpt-4o",
+                    model=self.default_model,
                     output_format="png",
                     max_tokens=min(config.max_tokens or 500, 500)
                 )
