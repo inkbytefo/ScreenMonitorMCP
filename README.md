@@ -4,6 +4,10 @@
 
 ScreenMonitorMCP is a revolutionary MCP (Model Context Protocol) server that provides Claude and other AI assistants with real-time screen monitoring, visual analysis, and intelligent interaction capabilities. This project enables AI to see, understand, and interact with your screen in ways never before possible.
 
+![Whisk_5d4767ec99](https://github.com/user-attachments/assets/2c909ed5-8aca-48b0-8f1c-33f51b29e026)
+
+
+
 ## Why ScreenMonitorMCP?
 
 Transform your AI assistant from text-only to a visual powerhouse that can:
