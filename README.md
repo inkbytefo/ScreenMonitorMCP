@@ -47,24 +47,47 @@ Transform your AI assistant from text-only to a visual powerhouse that can:
 ## Quick Setup
 
 ### 1. Installation
+## Installation
+
+### Option 1: Install from PyPI (Recommended)
+
+```bash
+# Install the package
+pip install screenmonitormcp
+
+# Run the server
+screenmonitormcp
+# or use the short alias
+smcp
+```
+
+### Option 2: Install from Source
+
 ```bash
 git clone https://github.com/inkbytefo/ScreenMonitorMCP.git
 cd ScreenMonitorMCP
-pip install -r requirements.txt
+pip install -e .
 ```
 
-### 2. Configuration
+### Configuration
+
+Create a `.env` file in your working directory:
+
 ```bash
+# Copy the example configuration
 cp .env.example .env
 # Edit .env file with your OpenAI API key
 ```
 
-### 3. Run Server
-```bash
-python main.py
+Example `.env` configuration:
+```env
+OPENAI_API_KEY=your_openai_api_key_here
+OPENAI_BASE_URL=https://api.openai.com/v1
+DEFAULT_OPENAI_MODEL=gpt-4-vision-preview
+DEFAULT_MAX_TOKENS=1000
 ```
 
-### 4. Claude Desktop Integration
+### Claude Desktop Integration
 
 Add to your Claude Desktop `claude_desktop_config.json`:
 
@@ -72,9 +95,21 @@ Add to your Claude Desktop `claude_desktop_config.json`:
 {
   "mcpServers": {
     "screenMonitorMCP": {
+      "command": "screenmonitormcp",
+      "args": []
+    }
+  }
+}
+```
+
+**Alternative with custom path:**
+```json
+{
+  "mcpServers": {
+    "screenMonitorMCP": {
       "command": "python",
       "args": [
-        "/path/to/ScreenMonitorMCP/main.py"
+        "-m", "screenmonitormcp.main"
       ]
     }
   }
