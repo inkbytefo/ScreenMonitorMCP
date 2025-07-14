@@ -362,17 +362,37 @@ class VideoAnalyzer:
         prompt += f"Toplam süre: {config.duration} saniye. "
         prompt += "Lütfen bu video kaydında neler olduğunu detaylı olarak analiz edin."
 
-        # Analyze with AI
+        # Analyze with AI - Try with multiple images first, fallback to single image
         try:
+            # First try with multiple images if available
+            if len(frames_base64) > 1:
+                try:
+                    analysis = await self.ai_provider.analyze_image(
+                        image_base64=frames_base64[0],  # Use first frame as primary
+                        prompt=prompt,
+                        model=self.default_model,  # Use configured model
+                        output_format="png",
+                        max_tokens=config.max_tokens or 1000,
+                        additional_images=frames_base64[1:]
+                    )
+                    return analysis
+                except Exception as multi_image_error:
+                    logger.warning("Multiple image analysis failed, falling back to single image",
+                                 error=str(multi_image_error))
+                    # Fall through to single image analysis
+
+            # Fallback: Use only the first frame with enhanced prompt
+            enhanced_prompt = f"{prompt}\n\nNot: Bu analiz video kaydının temsili bir karesi üzerinden yapılmıştır."
             analysis = await self.ai_provider.analyze_image(
-                image_base64=frames_base64[0],  # Use first frame as primary
-                prompt=prompt,
-                model=self.default_model,  # Use configured model
+                image_base64=frames_base64[0],  # Use first frame only
+                prompt=enhanced_prompt,
+                model=self.default_model,
                 output_format="png",
-                max_tokens=config.max_tokens or 1000,
-                additional_images=frames_base64[1:] if len(frames_base64) > 1 else None
+                max_tokens=config.max_tokens or 1000
+                # No additional_images parameter
             )
             return analysis
+
         except Exception as e:
             logger.error("Summary analysis failed", error=str(e))
             return f"Video analizi başarısız oldu: {str(e)}"
