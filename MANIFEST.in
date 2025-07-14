@@ -1,0 +1,43 @@
+# Include documentation files
+include README.md
+include LICENSE
+include CHANGELOG.md
+include CONTRIBUTING.md
+
+# Include configuration files
+include requirements.txt
+include pyproject.toml
+include .env.example
+
+# Include package data
+recursive-include screenmonitormcp *.py
+recursive-include screenmonitormcp *.md
+recursive-include screenmonitormcp *.txt
+recursive-include screenmonitormcp *.json
+recursive-include screenmonitormcp *.yaml
+recursive-include screenmonitormcp *.yml
+
+# Include configuration directory
+recursive-include config *
+
+# Exclude development and cache files
+exclude .env
+recursive-exclude * __pycache__
+recursive-exclude * *.py[co]
+recursive-exclude * *.so
+recursive-exclude * .DS_Store
+recursive-exclude * .git*
+recursive-exclude cache *
+recursive-exclude .github *
+recursive-exclude tests *
+recursive-exclude docs *
+
+# Include GitHub workflows for reference
+include .github/workflows/*.yml
+
+# Include example files
+include examples/*.py
+include examples/*.md
+
+# Include type stubs if any
+recursive-include screenmonitormcp *.pyi

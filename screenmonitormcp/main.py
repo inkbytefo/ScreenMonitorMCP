@@ -14,20 +14,20 @@ import numpy as np
 import time
 
 from mcp.server.fastmcp import FastMCP
-from ai_providers import OpenAIProvider
-from ui_detection import get_ui_detector, get_smart_clicker
-from application_monitor import ApplicationMonitor, ApplicationEvent, get_global_app_monitor, set_global_app_monitor
-from smart_monitoring import SmartMonitor, SmartMonitoringConfig, SmartEvent, get_global_smart_monitor, set_global_smart_monitor
-from video_recorder import VideoRecorder, VideoAnalyzer, VideoRecordingConfig, VideoAnalysisResult
-from cache_manager import get_cache_manager, shutdown_cache
-from conversation_context import get_conversation_manager
-from system_metrics import get_metrics_manager
-from batch_processor import get_batch_processor, BatchPriority
-from image_optimizer import get_image_optimizer, OptimizationConfig
-from error_recovery import get_error_recovery_manager, with_recovery
-from platform_support import get_platform_manager
-from input_simulator import get_input_simulator, KeyboardInput, MouseInput, MouseButton
-from screen_streamer import get_global_stream_manager, StreamConfig
+from .ai_providers import OpenAIProvider
+from .ui_detection import get_ui_detector, get_smart_clicker
+from .application_monitor import ApplicationMonitor, ApplicationEvent, get_global_app_monitor, set_global_app_monitor
+from .smart_monitoring import SmartMonitor, SmartMonitoringConfig, SmartEvent, get_global_smart_monitor, set_global_smart_monitor
+from .video_recorder import VideoRecorder, VideoAnalyzer, VideoRecordingConfig, VideoAnalysisResult
+from .cache_manager import get_cache_manager, shutdown_cache
+from .conversation_context import get_conversation_manager
+from .system_metrics import get_metrics_manager
+from .batch_processor import get_batch_processor, BatchPriority
+from .image_optimizer import get_image_optimizer, OptimizationConfig
+from .error_recovery import get_error_recovery_manager, with_recovery
+from .platform_support import get_platform_manager
+from .input_simulator import get_input_simulator, KeyboardInput, MouseInput, MouseButton
+from .screen_streamer import get_global_stream_manager, StreamConfig
 
 
 # --- Configuration ---
@@ -63,7 +63,13 @@ parser.add_argument("--openai-api-key", default=os.getenv("OPENAI_API_KEY"), hel
 parser.add_argument("--openai-base-url", default=os.getenv("OPENAI_BASE_URL"), help="Custom OpenAI API Base URL")
 parser.add_argument("--default-openai-model", default=os.getenv("DEFAULT_OPENAI_MODEL", "Qwen/Qwen2.5-VL-7B-Instruct"), help="Default OpenAI model for analysis")
 parser.add_argument("--default-max-tokens", type=int, default=int(os.getenv("DEFAULT_MAX_TOKENS", 1000)), help="Default max tokens for AI analysis")
-args = parser.parse_args()
+
+# Only parse args if this is the main module
+if __name__ == "__main__":
+    args = parser.parse_args()
+else:
+    # Use default values when imported as a module
+    args = parser.parse_args([])
 
 API_KEY = args.api_key
 OPENAI_API_KEY = args.openai_api_key
@@ -106,6 +112,11 @@ set_global_smart_monitor(smart_monitor)
 # Initialize Application Monitor
 app_monitor = ApplicationMonitor()
 set_global_app_monitor(app_monitor)
+
+# Initialize Stream Manager
+stream_manager = get_global_stream_manager()
+
+
 
 # Setup smart event callback for AI analysis
 def on_smart_event(event: SmartEvent):
@@ -2352,6 +2363,98 @@ if __name__ == "__main__":
     print("      * get_platform_info() - Cross-platform system information")
     print("      * simulate_input() - Advanced input simulation")
     print("      * get_input_capabilities() - Input system capabilities")
+    print()
+
+    logger.info("Starting Revolutionary MCP Server")
+    print("🔥 Server starting with Smart Monitoring capability...")
+    print("🎯 AI now has enhanced vision and smart interaction!")
+    mcp.run(transport='stdio')
+
+
+def main():
+    """Entry point for the screenmonitormcp package."""
+    import sys
+
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(
+        description="ScreenMonitorMCP - Revolutionary AI Vision Server",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  screenmonitormcp                    # Start MCP server with stdio transport
+  screenmonitormcp --help            # Show this help message
+  smcp                               # Short alias for screenmonitormcp
+
+For more information, visit: https://github.com/inkbytefo/ScreenMonitorMCP
+        """
+    )
+
+    parser.add_argument(
+        "--version",
+        action="version",
+        version=f"ScreenMonitorMCP 1.0.0"
+    )
+
+    parser.add_argument(
+        "--transport",
+        choices=["stdio", "websocket"],
+        default="stdio",
+        help="Transport protocol to use (default: stdio)"
+    )
+
+    parser.add_argument(
+        "--port",
+        type=int,
+        default=8000,
+        help="Port for websocket transport (default: 8000)"
+    )
+
+    parser.add_argument(
+        "--host",
+        default="localhost",
+        help="Host for websocket transport (default: localhost)"
+    )
+
+    args = parser.parse_args()
+
+    # Print banner
+    print("=" * 60)
+    print("🚀 ScreenMonitorMCP - Revolutionary AI Vision Server")
+    print("   Give AI real-time sight and screen interaction!")
+    print("=" * 60)
+    print()
+
+    # Start the server based on transport
+    if args.transport == "stdio":
+        print("📡 Starting MCP server with stdio transport...")
+        # Run the existing main logic
+        sys.argv = ["screenmonitormcp"]  # Reset argv for the main logic
+        # Import and run the main server logic here
+        # This will be the existing code that starts the MCP server
+        run_mcp_server()
+    elif args.transport == "websocket":
+        print(f"🌐 Starting MCP server with websocket transport on {args.host}:{args.port}...")
+        print("⚠️  WebSocket transport is planned for future release")
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    # If run directly, use the old behavior
+    run_mcp_server()
+
+
+def run_mcp_server():
+    """Run the main MCP server logic."""
+    # Print server information
+    print("🔥 ScreenMonitorMCP Server Features:")
+    print("   📊 Smart Monitoring with AI Analysis")
+    print("   🎯 Natural Language UI Interaction")
+    print("   📸 Real-time Screen Capture & Analysis")
+    print("   🎬 Video Recording & Analysis")
+    print("   🔄 Real-time Screen Streaming")
+    print("   🖱️  Advanced Input Simulation")
+    print("   📱 Cross-platform Support")
+    print("   ⚡ Performance Optimization")
     print()
 
     logger.info("Starting Revolutionary MCP Server")
