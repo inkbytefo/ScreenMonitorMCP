@@ -1,5 +1,5 @@
 [![Verified on MseeP](https://mseep.ai/badge.svg)](https://mseep.ai/app/a2dbda0f-f46d-40e1-9c13-0b47eff9df3a)
-
+[![MseeP.ai Security Assessment Badge](https://mseep.net/pr/inkbytefo-screenmonitormcp-badge.png)](https://mseep.ai/app/inkbytefo-screenmonitormcp)
 # ScreenMonitorMCP - Revolutionary AI Vision Server
 
 **Give AI real-time sight and screen interaction capabilities**
