@@ -1,3 +1,5 @@
+[![MseeP.ai Security Assessment Badge](https://mseep.net/pr/inkbytefo-screenmonitormcp-badge.png)](https://mseep.ai/app/inkbytefo-screenmonitormcp)
+
 # ScreenMonitorMCP - Revolutionary AI Vision Server
 
 **Give AI real-time sight and screen interaction capabilities**
