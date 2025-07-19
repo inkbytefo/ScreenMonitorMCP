@@ -1,6 +1,6 @@
 [![Verified on MseeP](https://mseep.ai/badge.svg)](https://mseep.ai/app/a2dbda0f-f46d-40e1-9c13-0b47eff9df3a)
 [![MseeP.ai Security Assessment Badge](https://mseep.net/pr/inkbytefo-screenmonitormcp-badge.png)](https://mseep.ai/app/inkbytefo-screenmonitormcp)
-<iframe src="https://github.com/sponsors/inkbytefo/card" title="Sponsor inkbytefo" height="225" width="600" style="border: 0;"></iframe>
+
 
 # ScreenMonitorMCP - Revolutionary AI Vision Server
 
