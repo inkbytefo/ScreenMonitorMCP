@@ -1,0 +1,324 @@
+Metadata-Version: 2.4
+Name: screenmonitormcp-v2
+Version: 2.0.0
+Summary: Revolutionary AI Vision MCP Server v2 - Streamable HTTP/SSE Architecture
+Author-email: inkbytefo <inkbytefo@gmail.com>
+Maintainer-email: inkbytefo <inkbytefo@gmail.com>
+License-Expression: MIT
+Project-URL: Homepage, https://github.com/inkbytefo/ScreenMonitorMCP
+Project-URL: Repository, https://github.com/inkbytefo/ScreenMonitorMCP
+Project-URL: Documentation, https://github.com/inkbytefo/ScreenMonitorMCP#readme
+Project-URL: Bug Tracker, https://github.com/inkbytefo/ScreenMonitorMCP/issues
+Project-URL: Changelog, https://github.com/inkbytefo/ScreenMonitorMCP/blob/main/CHANGELOG.md
+Keywords: mcp,ai,screen-monitoring,computer-vision,automation,claude,openai,screen-capture,ui-automation,real-time,streaming,sse,websocket,http
+Classifier: Development Status :: 4 - Beta
+Classifier: Intended Audience :: Developers
+Classifier: Operating System :: OS Independent
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.8
+Classifier: Programming Language :: Python :: 3.9
+Classifier: Programming Language :: Python :: 3.10
+Classifier: Programming Language :: Python :: 3.11
+Classifier: Programming Language :: Python :: 3.12
+Classifier: Topic :: Software Development :: Libraries :: Python Modules
+Classifier: Topic :: Multimedia :: Graphics :: Capture :: Screen Capture
+Classifier: Topic :: Scientific/Engineering :: Artificial Intelligence
+Classifier: Topic :: System :: Monitoring
+Classifier: Topic :: Internet :: WWW/HTTP :: HTTP Servers
+Classifier: Topic :: Internet :: WWW/HTTP :: Dynamic Content
+Requires-Python: >=3.8
+Description-Content-Type: text/markdown
+License-File: LICENSE
+Requires-Dist: fastapi>=0.104.0
+Requires-Dist: uvicorn[standard]>=0.24.0
+Requires-Dist: python-multipart>=0.0.6
+Requires-Dist: sse-starlette>=1.6.5
+Requires-Dist: python-socketio>=5.9.0
+Requires-Dist: websockets>=12.0
+Requires-Dist: mss>=9.0.0
+Requires-Dist: Pillow>=10.0.0
+Requires-Dist: opencv-python>=4.8.0
+Requires-Dist: numpy>=1.24.0
+Requires-Dist: openai>=1.0.0
+Requires-Dist: pytesseract>=0.3.10
+Requires-Dist: easyocr>=1.7.0
+Requires-Dist: pygetwindow>=0.0.9
+Requires-Dist: pyautogui>=0.9.54
+Requires-Dist: psutil>=5.9.0
+Requires-Dist: python-dotenv>=1.0.0
+Requires-Dist: pydantic>=2.0.0
+Requires-Dist: pydantic-settings>=2.0.0
+Requires-Dist: structlog>=23.0.0
+Requires-Dist: prometheus-client>=0.17.0
+Requires-Dist: tenacity>=8.2.0
+Requires-Dist: pandas>=2.0.0
+Requires-Dist: scikit-learn>=1.3.0
+Requires-Dist: mcp[cli]>=1.12.0
+Provides-Extra: dev
+Requires-Dist: pytest>=7.0.0; extra == "dev"
+Requires-Dist: pytest-asyncio>=0.21.0; extra == "dev"
+Requires-Dist: httpx>=0.25.0; extra == "dev"
+Requires-Dist: black>=23.0.0; extra == "dev"
+Requires-Dist: isort>=5.12.0; extra == "dev"
+Requires-Dist: flake8>=6.0.0; extra == "dev"
+Requires-Dist: mypy>=1.5.0; extra == "dev"
+Requires-Dist: pre-commit>=3.0.0; extra == "dev"
+Provides-Extra: docs
+Requires-Dist: sphinx>=7.0.0; extra == "docs"
+Requires-Dist: sphinx-rtd-theme>=1.3.0; extra == "docs"
+Requires-Dist: myst-parser>=2.0.0; extra == "docs"
+Dynamic: license-file
+
+# ScreenMonitorMCP-v2
+
+🖥️ **Advanced Screen Monitoring and AI Analysis MCP Server**
+
+A powerful Model Context Protocol (MCP) server that provides comprehensive screen monitoring, AI-powered analysis, and streaming capabilities. Built with FastMCP for optimal performance and compatibility.
+
+## ✨ Features
+
+### 🎯 Core Capabilities
+- **Screen Capture**: High-quality screenshots with multi-monitor support
+- **AI Vision Analysis**: Intelligent screen content analysis using multiple AI providers
+- **Real-time Streaming**: Live video streaming with customizable quality settings
+- **Performance Monitoring**: System metrics and performance tracking
+- **Multi-AI Support**: OpenAI, Anthropic, and Google AI integration
+
+### 🔧 Available Tools (12 Total)
+
+1. **capture_screen** - Capture screenshots with region selection
+2. **analyze_screen** - AI-powered screen content analysis
+3. **analyze_image** - Analyze image files with AI vision
+4. **chat_completion** - Generate AI chat responses
+5. **list_ai_models** - List available AI models
+6. **get_ai_status** - Check AI service status
+7. **get_performance_metrics** - System performance data
+8. **get_system_status** - Overall system health
+9. **create_stream** - Start video streaming
+10. **list_streams** - List active streams
+11. **get_stream_info** - Stream information
+12. **stop_stream** - Stop video streams
+
+## 🚀 Quick Start
+
+### Installation
+
+```bash
+# Install from wheel
+pip install dist/screenmonitormcp_v2-2.0.0-py3-none-any.whl
+
+# Or install from source
+pip install -e .
+```
+
+### Environment Setup
+
+Create a `.env` file with your API keys:
+
+```env
+OPENAI_API_KEY=your-openai-api-key
+ANTHROPIC_API_KEY=your-anthropic-api-key
+GOOGLE_API_KEY=your-google-api-key
+```
+
+### Running the Server
+
+```bash
+# MCP Server mode (for Claude Desktop)
+python -m screenmonitormcp_v2.mcp_main
+
+# HTTP Server mode (standalone)
+python -m screenmonitormcp_v2
+
+# Or using the CLI
+screenmonitormcp-v2
+```
+
+## 🔌 Client Integration
+
+### Claude Desktop Configuration
+
+Add to your Claude Desktop config file:
+
+```json
+{
+  "mcpServers": {
+    "screenmonitormcp-v2": {
+      "command": "python",
+      "args": [
+        "-m",
+        "screenmonitormcp_v2.mcp_main"
+      ],
+      "env": {
+        "OPENAI_API_KEY": "your-openai-api-key-here",
+        "ANTHROPIC_API_KEY": "your-anthropic-api-key-here",
+        "GOOGLE_API_KEY": "your-google-api-key-here"
+      }
+    }
+  }
+}
+```
+
+### Python Client Example
+
+```python
+import asyncio
+from mcp import ClientSession, StdioServerParameters
+from mcp.client.stdio import stdio_client
+
+async def connect_to_server():
+    server_params = StdioServerParameters(
+        command="python",
+        args=["-m", "screenmonitormcp_v2.mcp_main"]
+    )
+    
+    async with stdio_client(server_params) as (read, write):
+        async with ClientSession(read, write) as session:
+            await session.initialize()
+            
+            # List available tools
+            tools = await session.list_tools()
+            print(f"Available tools: {len(tools.tools)}")
+            
+            # Capture screen
+            result = await session.call_tool(
+                "capture_screen",
+                arguments={"monitor": 0, "format": "png"}
+            )
+            print(f"Capture result: {result}")
+
+asyncio.run(connect_to_server())
+```
+
+## 📁 Project Structure
+
+```
+screenmonitormcp-v2/
+├── src/
+│   ├── core/
+│   │   ├── mcp_server.py      # FastMCP server implementation
+│   │   ├── screen_capture.py  # Screen capture functionality
+│   │   ├── ai_vision.py       # AI vision analysis
+│   │   ├── streaming.py       # Video streaming
+│   │   └── ...
+│   ├── models/               # Data models
+│   └── server/              # Web server components
+├── dist/                    # Built packages
+├── claude_desktop_config_example.json
+├── mcp_client_examples.py   # Client connection examples
+└── test_mcp_complete.py     # Testing utilities
+```
+
+## 🔧 Development
+
+### Building the Package
+
+```bash
+# Build wheel and source distribution
+python -m build
+
+# Install in development mode
+pip install -e .
+```
+
+### Testing
+
+```bash
+# Run complete MCP test
+python test_mcp_complete.py
+
+# Test client examples
+python mcp_client_examples.py
+```
+
+## 🆕 What's New in v2.0.0
+
+- **FastMCP Migration**: Upgraded from legacy MCP SDK to FastMCP for better performance
+- **Enhanced Tool Set**: All 12 tools now properly exposed and functional
+- **Improved Error Handling**: Better error messages and debugging capabilities
+- **Client Examples**: Comprehensive examples for different integration scenarios
+- **Claude Desktop Ready**: Optimized configuration for Claude Desktop integration
+
+## 📋 API Reference
+
+### Screen Capture
+
+```python
+# Basic screen capture
+result = await session.call_tool("capture_screen", {
+    "monitor": 0,
+    "format": "png"
+})
+
+# Region capture
+result = await session.call_tool("capture_screen", {
+    "monitor": 0,
+    "region": {"x": 100, "y": 100, "width": 800, "height": 600},
+    "format": "jpeg"
+})
+```
+
+### AI Analysis
+
+```python
+# Analyze current screen
+result = await session.call_tool("analyze_screen", {
+    "query": "What applications are currently open?",
+    "monitor": 0,
+    "detail_level": "high"
+})
+
+# Analyze image file
+result = await session.call_tool("analyze_image", {
+    "image_path": "/path/to/image.png",
+    "query": "Describe what you see in this image",
+    "detail_level": "high"
+})
+```
+
+### Streaming
+
+```python
+# Create a stream
+stream = await session.call_tool("create_stream", {
+    "name": "desktop_stream",
+    "monitor": 0,
+    "quality": "high",
+    "fps": 30
+})
+
+# List active streams
+streams = await session.call_tool("list_streams")
+
+# Stop a stream
+result = await session.call_tool("stop_stream", {
+    "stream_id": "stream_id_here"
+})
+```
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests if applicable
+5. Submit a pull request
+
+## 📄 License
+
+MIT License - see LICENSE file for details.
+
+## 👨‍💻 Author
+
+**inkbytefo** - [GitHub](https://github.com/inkbytefo)
+
+---
+
+🔗 **Links**
+- [MCP Documentation](https://modelcontextprotocol.io/)
+- [FastMCP GitHub](https://github.com/jlowin/fastmcp)
+- [Claude Desktop](https://claude.ai/desktop)
+
+---
+
+*Built with ❤️ using FastMCP and modern Python practices*

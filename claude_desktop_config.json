@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "screenmonitormcp-v2": {
+      "command": "python",
+      "args": ["-m", "screenmonitormcp_v2.mcp_main"],
+      "env": {
+        "OPENAI_API_KEY": "your-openai-api-key-here",
+        "OPENAI_BASE_URL": "https://openrouter.ai/api/v1",
+        "OPENAI_MODEL": "qwen/qwen2.5-vl-32b-instruct:free"
+      }
+    }
+  }
+}
