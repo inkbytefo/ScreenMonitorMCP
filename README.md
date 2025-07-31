@@ -1,7 +1,96 @@
 # ScreenMonitorMCP v2
 
-This repository is being updated. Please check back soon for the new version.
+A powerful Model Context Protocol (MCP) server that gives AI real-time vision capabilities and enhanced UI intelligence. Transform your AI assistant into a visual powerhouse that can see, analyze, and interact with your screen content.
+
+## What is ScreenMonitorMCP?
+
+ScreenMonitorMCP v2 is a revolutionary MCP server that bridges the gap between AI and visual computing. It enables AI assistants to capture screenshots, analyze screen content, and provide intelligent insights about what's happening on your display.
+
+## Key Features
+
+- **Real-time Screen Capture**: Instant screenshot capabilities across multiple monitors
+- **AI-Powered Analysis**: Advanced screen content analysis using state-of-the-art vision models
+- **Streaming Support**: Live screen streaming for continuous monitoring
+- **Performance Monitoring**: Built-in system health and performance metrics
+- **Multi-Platform**: Works seamlessly on Windows, macOS, and Linux
+- **Easy Integration**: Simple setup with Claude Desktop and other MCP clients
+
+## Quick Start
+
+### Installation
+
+```bash
+# Install from PyPI
+pip install screenmonitormcp-v2
+
+# Or install from source
+git clone https://github.com/inkbytefo/screenmonitormcp-v2.git
+cd screenmonitormcp-v2
+pip install -e .
+```
+
+### Configuration
+
+1. Create a `.env` file with your AI service credentials:
+
+```env
+OPENAI_API_KEY=your-api-key-here
+OPENAI_MODEL=gpt-4o
+```
+
+2. Add to your Claude Desktop config:
+
+```json
+{
+  "mcpServers": {
+    "screenmonitormcp-v2": {
+      "command": "python",
+      "args": ["-m", "screenmonitormcp_v2"]
+    }
+  }
+}
+```
+
+3. Restart Claude Desktop and start capturing!
+
+## Available Tools
+
+- `capture_screen` - Take screenshots of any monitor
+- `analyze_screen` - AI-powered screen content analysis
+- `analyze_image` - Analyze any image with AI vision
+- `create_stream` - Start live screen streaming
+- `get_performance_metrics` - System health monitoring
+
+## Use Cases
+
+- **UI/UX Analysis**: Get AI insights on interface design and usability
+- **Debugging Assistance**: Visual debugging with AI-powered error detection
+- **Content Creation**: Automated screenshot documentation and analysis
+- **Accessibility Testing**: Screen reader and accessibility compliance checking
+- **System Monitoring**: Visual system health and performance tracking
+
+## Documentation
+
+For detailed setup instructions and advanced configuration, see our [MCP Setup Guide](MCP_SETUP_GUIDE.md).
+
+## Requirements
+
+- Python 3.8+
+- OpenAI API key (or compatible service)
+- MCP-compatible client (Claude Desktop, etc.)
+
+## Contributing
+
+We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+
+## License
+
+MIT License - see [LICENSE](LICENSE) for details.
 
 ## Previous Version
 
-The previous version (v1) has been moved to the [v1 branch](https://github.com/inkbytefo/ScreenMonitorMCP/tree/v1).
+Looking for v1? Check the [v1 branch](https://github.com/inkbytefo/ScreenMonitorMCP/tree/v1) for the previous version.
+
+---
+
+**Built with ❤️ by [inkbytefo](https://github.com/inkbytefo)**
