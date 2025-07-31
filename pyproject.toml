@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "screenmonitormcp-v2"
-version = "2.0.1"
+version = "2.0.3"
 description = "A revolutionary Model Context Protocol (MCP) server that gives AI real-time vision capabilities and enhanced UI intelligence power"
 readme = "README.md"
 requires-python = ">=3.8"
@@ -82,12 +82,13 @@ Documentation = "https://github.com/inkbytefo/ScreenMonitorMCP/blob/main/README.
 Changelog = "https://github.com/inkbytefo/ScreenMonitorMCP/blob/main/CHANGELOG.md"
 
 [project.scripts]
-screenmonitormcp-v2-mcp = "screenmonitormcp.main:main"
-screenmonitormcp-v2-server = "screenmonitormcp.server:run_server"
-screenmonitormcp-v2-cli = "screenmonitormcp.cli:main"
+screenmonitormcp-v2-mcp = "screenmonitormcp_v2.mcp_main:main"
+screenmonitormcp-v2-server = "screenmonitormcp_v2.server.main:main"
+screenmonitormcp-v2-cli = "screenmonitormcp_v2.cli:main"
 
 [tool.setuptools.packages.find]
-where = ["src"]
+where = ["."]
+include = ["screenmonitormcp_v2*"]
 
 [tool.setuptools.package-data]
 "*" = ["py.typed", "*.pyi"]
