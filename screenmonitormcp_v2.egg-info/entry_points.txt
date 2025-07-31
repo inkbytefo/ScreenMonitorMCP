@@ -1,7 +1,0 @@
-[console_scripts]
-screenmonitormcp-v2 = screenmonitormcp_v2.main:main
-screenmonitormcp-v2-mcp = screenmonitormcp_v2.mcp_main:main
-smcp2 = screenmonitormcp_v2.main:main
-
-[mcp.servers]
-screenmonitormcp-v2 = screenmonitormcp_v2.mcp_main:main
