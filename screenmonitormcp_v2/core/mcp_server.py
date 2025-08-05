@@ -26,6 +26,7 @@ from mcp.server.fastmcp import FastMCP
 try:
     from .screen_capture import ScreenCapture
     from .ai_service import ai_service
+    from .ai_analyzer import AIAnalyzer
     from .streaming import stream_manager
     from .performance_monitor import performance_monitor
     from .config import Config
@@ -36,6 +37,7 @@ except ImportError:
     sys.path.append(str(Path(__file__).parent.parent))
     from core.screen_capture import ScreenCapture
     from core.ai_service import ai_service
+    from core.ai_analyzer import AIAnalyzer
     from core.streaming import stream_manager
     from core.performance_monitor import performance_monitor
     from core.config import Config
@@ -54,6 +56,7 @@ mcp = FastMCP("screenmonitormcp-v2")
 # Initialize components
 config = Config()
 screen_capture = ScreenCapture()
+ai_analyzer = AIAnalyzer()
 
 @mcp.tool()
 async def capture_screen(
@@ -800,6 +803,118 @@ def database_pool_health_check() -> str:
         return "\n".join(response_lines)
     except Exception as e:
         logger.error(f"Failed to perform database health check: {e}")
+        return f"Error: {str(e)}"
+
+@mcp.tool()
+async def detect_ui_elements(
+    monitor: int = 0
+) -> str:
+    """Detect and classify UI elements in the current screen
+    
+    Args:
+        monitor: Monitor number to analyze (0 for primary)
+    
+    Returns:
+        UI elements detection results as text
+    """
+    try:
+        if not ai_analyzer.client:
+            return "Error: AI analyzer is not available. Please configure your OpenAI API key."
+        
+        image_data = await screen_capture.capture_screen(monitor)
+        result = await ai_analyzer.detect_ui_elements(image_data)
+        
+        if result.get("success"):
+            return result.get("analysis", "No analysis available")
+        else:
+            return f"Error: {result.get('error', 'Unknown error occurred')}"
+    except Exception as e:
+        logger.error(f"UI elements detection failed: {e}")
+        return f"Error: {str(e)}"
+
+@mcp.tool()
+async def assess_system_performance(
+    monitor: int = 0
+) -> str:
+    """Assess system performance indicators visible on screen
+    
+    Args:
+        monitor: Monitor number to analyze (0 for primary)
+    
+    Returns:
+        Performance assessment results as text
+    """
+    try:
+        if not ai_analyzer.client:
+            return "Error: AI analyzer is not available. Please configure your OpenAI API key."
+        
+        image_data = await screen_capture.capture_screen(monitor)
+        result = await ai_analyzer.assess_system_performance(image_data)
+        
+        if result.get("success"):
+            return result.get("analysis", "No analysis available")
+        else:
+            return f"Error: {result.get('error', 'Unknown error occurred')}"
+    except Exception as e:
+        logger.error(f"System performance assessment failed: {e}")
+        return f"Error: {str(e)}"
+
+@mcp.tool()
+async def detect_anomalies(
+    monitor: int = 0,
+    baseline_description: str = ""
+) -> str:
+    """Detect visual anomalies and unusual patterns in the screen
+    
+    Args:
+        monitor: Monitor number to analyze (0 for primary)
+        baseline_description: Optional description of normal state for comparison
+    
+    Returns:
+        Anomaly detection results as text
+    """
+    try:
+        if not ai_analyzer.client:
+            return "Error: AI analyzer is not available. Please configure your OpenAI API key."
+        
+        image_data = await screen_capture.capture_screen(monitor)
+        result = await ai_analyzer.detect_anomalies(image_data, baseline_description)
+        
+        if result.get("success"):
+            return result.get("analysis", "No analysis available")
+        else:
+            return f"Error: {result.get('error', 'Unknown error occurred')}"
+    except Exception as e:
+        logger.error(f"Anomaly detection failed: {e}")
+        return f"Error: {str(e)}"
+
+@mcp.tool()
+async def generate_monitoring_report(
+    monitor: int = 0,
+    context: str = ""
+) -> str:
+    """Generate comprehensive monitoring report from screen analysis
+    
+    Args:
+        monitor: Monitor number to analyze (0 for primary)
+        context: Additional context for the report
+    
+    Returns:
+        Comprehensive monitoring report as text
+    """
+    try:
+        if not ai_analyzer.client:
+            return "Error: AI analyzer is not available. Please configure your OpenAI API key."
+        
+        image_data = await screen_capture.capture_screen(monitor)
+        result = await ai_analyzer.generate_monitoring_report(image_data, context)
+        
+        if result.get("success"):
+            return result.get("analysis", "No analysis available")
+        else:
+            return f"Error: {result.get('error', 'Unknown error occurred')}"
+    except Exception as e:
+        logger.error(f"Monitoring report generation failed: {e}")
         return f"Error: {str(e)}"
 
 def setup_logging():

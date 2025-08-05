@@ -1,4 +1,7 @@
-"""AI service for ScreenMonitorMCP v2 with OpenAI compatibility and memory integration."""
+"""AI Monitor Analysis Expert Service for ScreenMonitorMCP v2 with OpenAI compatibility and memory integration.
+
+This module provides specialized AI services for monitor analysis with OpenAI-compatible interface,
+integrated memory system, comprehensive error handling, and expert-level monitoring capabilities."""
 
 from typing import Optional, Dict, Any, List
 import logging
@@ -25,7 +28,11 @@ if not logger.handlers:
 
 
 class AIService:
-    """AI service supporting OpenAI and compatible APIs."""
+    """AI Monitor Analysis Expert Service with OpenAI compatibility and memory integration.
+    
+    Provides specialized AI analysis capabilities for monitor analysis with memory storage,
+    retrieval, and expert-level monitoring insights. Optimized for screen monitoring,
+    system performance analysis, and anomaly detection."""
     
     def __init__(self):
         self.client: Optional[AsyncOpenAI] = None
@@ -63,7 +70,7 @@ class AIService:
         image_base64: str,
         prompt: str = "What's in this image?",
         model: Optional[str] = None,
-        max_tokens: int = 300,
+        max_tokens: int = 1500,
         store_in_memory: bool = True,
         stream_id: Optional[str] = None,
         sequence: Optional[int] = None,
@@ -157,8 +164,8 @@ class AIService:
         self,
         messages: List[Dict[str, str]],
         model: Optional[str] = None,
-        max_tokens: int = 1000,
-        temperature: float = 0.7
+        max_tokens: int = 2000,
+        temperature: float = 0.2
     ) -> Dict[str, Any]:
         """
         Generate chat completion using any OpenAI compatible model.

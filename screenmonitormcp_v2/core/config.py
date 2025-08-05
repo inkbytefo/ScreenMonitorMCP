@@ -26,7 +26,7 @@ class Config:
         """Initialize configuration from environment variables."""
         # OpenAI Configuration
         self.openai_api_key = os.getenv("OPENAI_API_KEY")
-        self.openai_model = os.getenv("OPENAI_MODEL", "gpt-4-vision-preview")
+        self.openai_model = os.getenv("OPENAI_MODEL", "gpt-4o")
         
         # Server Configuration
         self.server_host = os.getenv("SERVER_HOST", "localhost")

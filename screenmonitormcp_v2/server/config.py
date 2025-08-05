@@ -53,7 +53,7 @@ class ServerConfig(BaseSettings):
     # AI Provider settings
     openai_api_key: Optional[str] = Field(None, description="OpenAI API key")
     openai_base_url: Optional[str] = Field(None, description="OpenAI API base URL (for compatible APIs)")
-    openai_model: str = Field("gpt-4o-mini", description="OpenAI model name")
+    openai_model: str = Field("gpt-4o", description="OpenAI model name - Optimized for monitor analysis")
     openai_timeout: int = Field(30, description="OpenAI timeout in seconds")
     
     # Cache settings
