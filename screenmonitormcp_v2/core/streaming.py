@@ -1,4 +1,4 @@
-"""Streaming management for ScreenMonitorMCP v2."""
+"""Streaming management for ScreenMonitorMCP v2 with memory integration."""
 
 import asyncio
 import base64
@@ -10,6 +10,24 @@ import structlog
 from PIL import Image
 import mss
 import numpy as np
+
+try:
+    from .memory_system import memory_system
+except ImportError:
+    # Fallback for direct execution
+    import sys
+    from pathlib import Path
+    sys.path.append(str(Path(__file__).parent.parent))
+    from ai.memory_system import memory_system
+
+try:
+    from .ai_service import ai_service
+except ImportError:
+    # Fallback for direct execution
+    import sys
+    from pathlib import Path
+    sys.path.append(str(Path(__file__).parent.parent))
+    from ai.ai_service import ai_service
 
 try:
     from ..models.responses import StreamingEvent
@@ -33,12 +51,25 @@ logger = structlog.get_logger()
 
 
 class StreamManager:
-    """Manages real-time streaming operations."""
+    """Manages real-time streaming operations with memory integration."""
     
     def __init__(self):
         self._active_streams: Dict[str, Dict[str, Any]] = {}
         self._stream_tasks: Dict[str, asyncio.Task] = {}
         self._lock = asyncio.Lock()
+        self._memory_enabled = True
+        self._analysis_interval = 5  # Analyze every 5 frames
+        self._frame_counter = {}  # Track frames per stream
+        self._resource_monitor = {
+            "max_memory_mb": 512,  # Maximum memory usage in MB
+            "max_streams": 5,      # Maximum concurrent streams
+            "frame_buffer_size": 10,  # Maximum frames to buffer
+            "cleanup_interval": 300,  # Cleanup interval in seconds
+            "last_cleanup": datetime.now()
+        }
+        self._frame_buffers: Dict[str, list] = {}  # Frame buffers per stream
+        self._cleanup_task: Optional[asyncio.Task] = None
+        self._start_resource_monitor()
         
     async def create_stream(
         self,
@@ -82,18 +113,26 @@ class StreamManager:
                     "avg_broadcast_time": 0.0,
                     "failed_sends": 0,
                     "quality_adjustments": 0
+                },
+                "memory_config": {
+                    "enabled": self._memory_enabled,
+                    "analysis_interval": self._analysis_interval,
+                    "last_analysis_sequence": 0,
+                    "total_analyses": 0
                 }
             }
             
             self._active_streams[stream_id] = stream_config
+            self._frame_counter[stream_id] = 0
             
             logger.info(
-                "Stream created with safety controls",
+                "Stream created with safety controls and memory integration",
                 stream_id=stream_id,
                 stream_type=stream_type,
                 fps=fps,
                 quality=quality,
-                max_concurrent=config.max_concurrent_streams
+                max_concurrent=config.max_concurrent_streams,
+                memory_enabled=self._memory_enabled
             )
             
             return stream_id
@@ -197,6 +236,11 @@ class StreamManager:
                     sequence=stream_config["sequence"]
                 )
                 
+                # Memory system integration - analyze frames periodically
+                await self._process_frame_for_memory(
+                    stream_id, data, stream_config
+                )
+                
                 # Broadcast to all WebSocket connections
                 broadcast_data = {
                     "type": "stream_data",
@@ -264,6 +308,104 @@ class StreamManager:
             # Clean up
             if stream_id in self._active_streams:
                 self._active_streams[stream_id]["status"] = "stopped"
+            if stream_id in self._frame_counter:
+                del self._frame_counter[stream_id]
+    
+    async def _process_frame_for_memory(
+        self, 
+        stream_id: str, 
+        data: Dict[str, Any], 
+        stream_config: Dict[str, Any]
+    ):
+        """Process frame for memory system integration."""
+        try:
+            if not stream_config.get("memory_config", {}).get("enabled", False):
+                return
+            
+            # Increment frame counter
+            self._frame_counter[stream_id] = self._frame_counter.get(stream_id, 0) + 1
+            current_frame = self._frame_counter[stream_id]
+            
+            memory_config = stream_config["memory_config"]
+            analysis_interval = memory_config["analysis_interval"]
+            
+            # Check if it's time to analyze
+            if current_frame % analysis_interval == 0:
+                # Extract image data
+                image_data = data.get("image_data")
+                if not image_data:
+                    return
+                
+                # Prepare analysis prompt
+                analysis_prompt = f"Analyze this screen capture from stream {stream_id} at sequence {stream_config['sequence']}. Describe what you see, any changes from previous frames, and notable activities."
+                
+                # Perform AI analysis asynchronously (don't block streaming)
+                asyncio.create_task(self._analyze_and_store(
+                    stream_id=stream_id,
+                    image_data=image_data,
+                    prompt=analysis_prompt,
+                    sequence=stream_config["sequence"],
+                    frame_number=current_frame
+                ))
+                
+                # Update memory config
+                memory_config["last_analysis_sequence"] = stream_config["sequence"]
+                memory_config["total_analyses"] += 1
+                
+                logger.debug(
+                    "Scheduled frame analysis for memory",
+                    stream_id=stream_id,
+                    sequence=stream_config["sequence"],
+                    frame_number=current_frame,
+                    total_analyses=memory_config["total_analyses"]
+                )
+                
+        except Exception as e:
+            logger.error(
+                "Error processing frame for memory",
+                stream_id=stream_id,
+                error=str(e),
+                exc_info=True
+            )
+    
+    async def _analyze_and_store(
+        self,
+        stream_id: str,
+        image_data: str,
+        prompt: str,
+        sequence: int,
+        frame_number: int
+    ):
+        """Analyze frame with AI and store in memory system."""
+        try:
+            # Perform AI analysis
+            analysis_result = await ai_service.analyze_image(
+                image_base64=image_data,
+                prompt=prompt,
+                detail_level="low",  # Use low detail for streaming to save resources
+                store_in_memory=True,
+                stream_id=stream_id,
+                sequence=sequence,
+                tags=["streaming", "auto_analysis", f"frame_{frame_number}"]
+            )
+            
+            logger.info(
+                "Frame analyzed and stored in memory",
+                stream_id=stream_id,
+                sequence=sequence,
+                frame_number=frame_number,
+                analysis_length=len(analysis_result.get("analysis", ""))
+            )
+            
+        except Exception as e:
+            logger.error(
+                "Error analyzing frame for memory",
+                stream_id=stream_id,
+                sequence=sequence,
+                frame_number=frame_number,
+                error=str(e),
+                exc_info=True
+            )
     
     async def get_stream_info(self, stream_id: str) -> Optional[Dict[str, Any]]:
         """Get stream information."""
@@ -281,22 +423,199 @@ class StreamManager:
         """Check if stream manager is running."""
         return len(self._active_streams) > 0
 
+    def enable_memory_system(self, enabled: bool = True):
+        """Enable or disable memory system integration."""
+        self._memory_enabled = enabled
+        logger.info(f"Memory system {'enabled' if enabled else 'disabled'} for streaming")
+    
+    def set_analysis_interval(self, interval: int):
+        """Set the analysis interval for memory system."""
+        if interval < 1:
+            raise ValueError("Analysis interval must be at least 1")
+        self._analysis_interval = interval
+        logger.info(f"Analysis interval set to {interval} frames")
+    
+    def get_memory_stats(self) -> Dict[str, Any]:
+        """Get memory system statistics for all streams."""
+        stats = {
+            "memory_enabled": self._memory_enabled,
+            "analysis_interval": self._analysis_interval,
+            "streams": {}
+        }
+        
+        for stream_id, stream_config in self._active_streams.items():
+            memory_config = stream_config.get("memory_config", {})
+            stats["streams"][stream_id] = {
+                "enabled": memory_config.get("enabled", False),
+                "total_analyses": memory_config.get("total_analyses", 0),
+                "last_analysis_sequence": memory_config.get("last_analysis_sequence", 0),
+                "current_frame": self._frame_counter.get(stream_id, 0)
+            }
+        
+        return stats
+    
     async def cleanup(self):
-        """Clean up all streams."""
+        """Clean up all streams and resources."""
         async with self._lock:
+            # Stop resource monitor
+            if self._cleanup_task and not self._cleanup_task.done():
+                self._cleanup_task.cancel()
+                try:
+                    await self._cleanup_task
+                except asyncio.CancelledError:
+                    pass
+            
+            # Stop all active streams
             for stream_id in list(self._active_streams.keys()):
                 await self.stop_stream(stream_id)
             
-            # Wait for all tasks to complete
-            if self._stream_tasks:
-                await asyncio.gather(
-                    *self._stream_tasks.values(),
-                    return_exceptions=True
-                )
-                self._stream_tasks.clear()
+            # Cancel all tasks
+            for task in self._stream_tasks.values():
+                if not task.done():
+                    task.cancel()
+                    try:
+                        await task
+                    except asyncio.CancelledError:
+                        pass
+            
+            # Clear frame buffers
+            self._frame_buffers.clear()
             
             self._active_streams.clear()
+            self._stream_tasks.clear()
+            self._frame_counter.clear()
             logger.info("All streams cleaned up")
+    
+    def _start_resource_monitor(self):
+        """Start the resource monitoring task."""
+        try:
+            # Check if there's a running event loop
+            loop = asyncio.get_running_loop()
+            if self._cleanup_task is None or self._cleanup_task.done():
+                self._cleanup_task = asyncio.create_task(self._resource_monitor_loop())
+        except RuntimeError:
+            # No running event loop, skip for now
+            # The task will be started when the event loop is available
+            pass
+    
+    async def _resource_monitor_loop(self):
+        """Resource monitoring loop."""
+        try:
+            while True:
+                await asyncio.sleep(self._resource_monitor["cleanup_interval"])
+                await self._perform_resource_cleanup()
+        except asyncio.CancelledError:
+            logger.info("Resource monitor stopped")
+            raise
+        except Exception as e:
+            logger.error(f"Resource monitor error: {e}")
+    
+    async def _perform_resource_cleanup(self):
+        """Perform resource cleanup operations."""
+        try:
+            import psutil
+            import os
+            
+            # Get current memory usage
+            process = psutil.Process(os.getpid())
+            memory_mb = process.memory_info().rss / (1024 * 1024)
+            
+            logger.debug(f"Current memory usage: {memory_mb:.2f} MB")
+            
+            # Check if memory usage is too high
+            if memory_mb > self._resource_monitor["max_memory_mb"]:
+                logger.warning(f"High memory usage detected: {memory_mb:.2f} MB")
+                await self._emergency_cleanup()
+            
+            # Clean up frame buffers
+            await self._cleanup_frame_buffers()
+            
+            # Update last cleanup time
+            self._resource_monitor["last_cleanup"] = datetime.now()
+            
+        except ImportError:
+            # psutil not available, perform basic cleanup
+            await self._cleanup_frame_buffers()
+        except Exception as e:
+            logger.error(f"Resource cleanup failed: {e}")
+    
+    async def _emergency_cleanup(self):
+        """Emergency cleanup when memory usage is too high."""
+        logger.warning("Performing emergency cleanup due to high memory usage")
+        
+        async with self._lock:
+            # Stop streams with lowest priority (oldest first)
+            streams_by_age = sorted(
+                self._active_streams.items(),
+                key=lambda x: x[1].get("created_at", datetime.now())
+            )
+            
+            # Stop half of the streams
+            streams_to_stop = len(streams_by_age) // 2
+            for i in range(streams_to_stop):
+                stream_id, _ = streams_by_age[i]
+                logger.warning(f"Emergency stopping stream: {stream_id}")
+                await self.stop_stream(stream_id)
+    
+    async def _cleanup_frame_buffers(self):
+        """Clean up frame buffers to prevent memory leaks."""
+        async with self._lock:
+            for stream_id, buffer in self._frame_buffers.items():
+                # Keep only the most recent frames
+                max_frames = self._resource_monitor["frame_buffer_size"]
+                if len(buffer) > max_frames:
+                    # Remove oldest frames
+                    frames_to_remove = len(buffer) - max_frames
+                    del buffer[:frames_to_remove]
+                    logger.debug(f"Cleaned {frames_to_remove} frames from buffer for stream {stream_id}")
+    
+    def get_resource_stats(self) -> Dict[str, Any]:
+        """Get current resource usage statistics."""
+        try:
+            import psutil
+            import os
+            
+            process = psutil.Process(os.getpid())
+            memory_info = process.memory_info()
+            
+            return {
+                "memory_usage_mb": round(memory_info.rss / (1024 * 1024), 2),
+                "memory_limit_mb": self._resource_monitor["max_memory_mb"],
+                "active_streams": len(self._active_streams),
+                "max_streams": self._resource_monitor["max_streams"],
+                "frame_buffers": {stream_id: len(buffer) for stream_id, buffer in self._frame_buffers.items()},
+                "last_cleanup": self._resource_monitor["last_cleanup"].isoformat(),
+                "cleanup_interval": self._resource_monitor["cleanup_interval"]
+            }
+        except ImportError:
+            return {
+                "memory_usage_mb": "unavailable (psutil not installed)",
+                "memory_limit_mb": self._resource_monitor["max_memory_mb"],
+                "active_streams": len(self._active_streams),
+                "max_streams": self._resource_monitor["max_streams"],
+                "frame_buffers": {stream_id: len(buffer) for stream_id, buffer in self._frame_buffers.items()},
+                "last_cleanup": self._resource_monitor["last_cleanup"].isoformat(),
+                "cleanup_interval": self._resource_monitor["cleanup_interval"]
+            }
+    
+    def configure_resource_limits(
+        self,
+        max_memory_mb: Optional[int] = None,
+        max_streams: Optional[int] = None,
+        frame_buffer_size: Optional[int] = None,
+        cleanup_interval: Optional[int] = None
+    ):
+        """Configure resource limits."""
+        if max_memory_mb is not None:
+            self._resource_monitor["max_memory_mb"] = max_memory_mb
+        if max_streams is not None:
+            self._resource_monitor["max_streams"] = max_streams
+        if frame_buffer_size is not None:
+            self._resource_monitor["frame_buffer_size"] = frame_buffer_size
+        if cleanup_interval is not None:
+            self._resource_monitor["cleanup_interval"] = cleanup_interval
+        
+        logger.info(f"Resource limits updated: {self._resource_monitor}")
 
 
 class ScreenStreamer:

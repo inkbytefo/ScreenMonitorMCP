@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "screenmonitormcp-v2"
-version = "2.0.3"
+version = "2.0.4"
 description = "A revolutionary Model Context Protocol (MCP) server that gives AI real-time vision capabilities and enhanced UI intelligence power"
 readme = "README.md"
 requires-python = ">=3.8"

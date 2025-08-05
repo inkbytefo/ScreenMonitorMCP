@@ -227,6 +227,136 @@ def get_ai_status() -> str:
         return f"Error: {str(e)}"
 
 @mcp.tool()
+async def analyze_scene_from_memory(
+    query: str,
+    stream_id: Optional[str] = None,
+    time_range_hours: int = 1
+) -> str:
+    """Analyze scene based on stored memory data
+    
+    Args:
+        query: Scene analysis query (e.g., "What happened in the last hour?", "What objects were visible?")
+        stream_id: Optional stream ID to filter analysis
+        time_range_hours: Hours to look back in memory (default: 1)
+    
+    Returns:
+        Scene analysis result based on memory
+    """
+    try:
+        if not ai_service.is_available():
+            return "Error: AI service is not available. Please configure your AI provider."
+        
+        result = await ai_service.analyze_scene_from_memory(
+            query=query,
+            stream_id=stream_id,
+            time_range_hours=time_range_hours
+        )
+        
+        if result.get("success"):
+            response = result.get("response", "No analysis available")
+            context_count = result.get("context_entries", 0)
+            return f"Scene Analysis: {response}\n\nBased on {context_count} memory entries from the last {time_range_hours} hour(s)."
+        else:
+            return f"Error: {result.get('error', 'Unknown error occurred')}"
+    except Exception as e:
+        logger.error(f"Scene analysis from memory failed: {e}")
+        return f"Error: {str(e)}"
+
+@mcp.tool()
+async def query_memory(
+    query: str,
+    entry_type: Optional[str] = None,
+    stream_id: Optional[str] = None,
+    limit: int = 10
+) -> str:
+    """Query the memory system for stored analysis data
+    
+    Args:
+        query: Search query for memory entries
+        entry_type: Filter by entry type ('analysis', 'scene', 'context')
+        stream_id: Filter by stream ID
+        limit: Maximum number of results (default: 10)
+    
+    Returns:
+        Memory query results
+    """
+    try:
+        result = await ai_service.query_memory_direct(
+            query=query,
+            entry_type=entry_type,
+            stream_id=stream_id,
+            limit=limit
+        )
+        
+        if result.get("success"):
+            results = result.get("results", [])
+            count = result.get("count", 0)
+            
+            if count == 0:
+                return f"No memory entries found for query: '{query}'"
+            
+            response_lines = [f"Found {count} memory entries for query: '{query}'\n"]
+            
+            for i, entry in enumerate(results[:5], 1):  # Show first 5 results
+                timestamp = entry.get("timestamp", "Unknown")
+                entry_type = entry.get("entry_type", "Unknown")
+                content = entry.get("content", {})
+                
+                if entry_type == "analysis":
+                    analysis_text = content.get("response", "No analysis text")
+                    response_lines.append(f"{i}. [{timestamp}] Analysis: {analysis_text[:200]}...")
+                elif entry_type == "scene":
+                    description = content.get("description", "No description")
+                    objects = content.get("objects", [])
+                    response_lines.append(f"{i}. [{timestamp}] Scene: {description} (Objects: {', '.join(objects[:5])})")
+                else:
+                    response_lines.append(f"{i}. [{timestamp}] {entry_type}: {str(content)[:200]}...")
+            
+            if count > 5:
+                response_lines.append(f"\n... and {count - 5} more entries.")
+            
+            return "\n".join(response_lines)
+        else:
+            return f"Error: {result.get('error', 'Unknown error occurred')}"
+    except Exception as e:
+        logger.error(f"Memory query failed: {e}")
+        return f"Error: {str(e)}"
+
+@mcp.tool()
+async def get_memory_statistics() -> str:
+    """Get memory system statistics and health information
+    
+    Returns:
+        Memory system statistics
+    """
+    try:
+        result = await ai_service.get_memory_statistics()
+        
+        if result.get("success"):
+            stats = result.get("statistics", {})
+            
+            response_lines = [
+                "Memory System Statistics:",
+                f"- Total entries: {stats.get('total_entries', 0)}",
+                f"- Recent entries (24h): {stats.get('recent_entries_24h', 0)}",
+                f"- Database path: {stats.get('database_path', 'Unknown')}",
+                f"- Initialized: {stats.get('initialized', False)}"
+            ]
+            
+            entries_by_type = stats.get("entries_by_type", {})
+            if entries_by_type:
+                response_lines.append("\nEntries by type:")
+                for entry_type, count in entries_by_type.items():
+                    response_lines.append(f"- {entry_type}: {count}")
+            
+            return "\n".join(response_lines)
+        else:
+            return f"Error: {result.get('error', 'Unknown error occurred')}"
+    except Exception as e:
+        logger.error(f"Failed to get memory statistics: {e}")
+        return f"Error: {str(e)}"
+
+@mcp.tool()
 def get_performance_metrics() -> str:
     """Get detailed performance metrics and system health
     
@@ -331,6 +461,345 @@ async def stop_stream(stream_id: str) -> str:
         return f"Stream stopped: {result}"
     except Exception as e:
         logger.error(f"Failed to stop stream: {e}")
+        return f"Error: {str(e)}"
+
+# Memory System Tools
+
+@mcp.tool()
+async def analyze_scene_from_memory(
+    query: str,
+    stream_id: Optional[str] = None,
+    time_range_minutes: int = 30,
+    limit: int = 10
+) -> str:
+    """Analyze scene based on stored memory data
+    
+    Args:
+        query: What to analyze or look for in the stored scenes
+        stream_id: Specific stream to analyze (optional)
+        time_range_minutes: Time range to search in minutes (default: 30)
+        limit: Maximum number of results to analyze (default: 10)
+    
+    Returns:
+        Scene analysis based on memory data
+    """
+    try:
+        result = await ai_service.analyze_scene_from_memory(
+            query=query,
+            stream_id=stream_id,
+            time_range_minutes=time_range_minutes,
+            limit=limit
+        )
+        return f"Scene analysis: {result}"
+    except Exception as e:
+        logger.error(f"Failed to analyze scene from memory: {e}")
+        return f"Error: {str(e)}"
+
+@mcp.tool()
+async def query_memory(
+    query: str,
+    stream_id: Optional[str] = None,
+    time_range_minutes: int = 60,
+    limit: int = 20
+) -> str:
+    """Query the memory system for stored analysis data
+    
+    Args:
+        query: Search query for memory entries
+        stream_id: Filter by specific stream ID (optional)
+        time_range_minutes: Time range to search in minutes (default: 60)
+        limit: Maximum number of results (default: 20)
+    
+    Returns:
+        Memory query results
+    """
+    try:
+        result = await ai_service.query_memory_direct(
+            query=query,
+            stream_id=stream_id,
+            time_range_minutes=time_range_minutes,
+            limit=limit
+        )
+        return f"Memory query results: {result}"
+    except Exception as e:
+        logger.error(f"Failed to query memory: {e}")
+        return f"Error: {str(e)}"
+
+@mcp.tool()
+async def get_memory_statistics() -> str:
+    """Get memory system statistics and health information
+    
+    Returns:
+        Memory system statistics
+    """
+    try:
+        stats = await ai_service.get_memory_statistics()
+        return f"Memory statistics: {stats}"
+    except Exception as e:
+        logger.error(f"Failed to get memory statistics: {e}")
+        return f"Error: {str(e)}"
+
+@mcp.tool()
+def get_stream_memory_stats() -> str:
+    """Get memory system statistics for streaming
+    
+    Returns:
+        Streaming memory statistics
+    """
+    try:
+        stats = stream_manager.get_memory_stats()
+        return f"Stream memory statistics: {stats}"
+    except Exception as e:
+        logger.error(f"Failed to get stream memory stats: {e}")
+        return f"Error: {str(e)}"
+
+@mcp.tool()
+def configure_stream_memory(
+    enabled: bool = True,
+    analysis_interval: int = 5
+) -> str:
+    """Configure memory system for streaming
+    
+    Args:
+        enabled: Enable or disable memory system for streaming
+        analysis_interval: Analysis interval in frames (default: 5)
+    
+    Returns:
+        Configuration result
+    """
+    try:
+        stream_manager.enable_memory_system(enabled)
+        if analysis_interval > 0:
+            stream_manager.set_analysis_interval(analysis_interval)
+        
+        return f"Stream memory configured: enabled={enabled}, interval={analysis_interval}"
+    except Exception as e:
+        logger.error(f"Failed to configure stream memory: {e}")
+        return f"Error: {str(e)}"
+
+@mcp.tool()
+async def get_memory_usage() -> str:
+    """Get detailed memory usage and performance metrics
+    
+    Returns:
+        Detailed memory usage statistics
+    """
+    try:
+        from .memory_system import memory_system
+        
+        usage_stats = await memory_system.get_memory_usage()
+        
+        if "error" in usage_stats:
+            return f"Error getting memory usage: {usage_stats['error']}"
+        
+        response_lines = [
+            "Memory Usage Statistics:",
+            f"- Database size: {usage_stats.get('database_size_mb', 0)} MB",
+            f"- Process memory: {usage_stats.get('process_memory_mb', 0)} MB",
+            f"- Total entries: {usage_stats.get('total_entries', 0)}",
+            f"- Recent entries (1h): {usage_stats.get('recent_entries_1h', 0)}",
+            f"- Auto cleanup enabled: {usage_stats.get('auto_cleanup_enabled', False)}"
+        ]
+        
+        cleanup_stats = usage_stats.get('cleanup_stats', {})
+        if cleanup_stats:
+            response_lines.extend([
+                "\nCleanup Statistics:",
+                f"- Cleanup runs: {cleanup_stats.get('cleanup_runs', 0)}",
+                f"- Last cleanup: {cleanup_stats.get('last_cleanup', 'Never')}"
+            ])
+        
+        return "\n".join(response_lines)
+    except Exception as e:
+        logger.error(f"Failed to get memory usage: {e}")
+        return f"Error: {str(e)}"
+
+@mcp.tool()
+async def configure_auto_cleanup(
+    enabled: bool,
+    max_age_days: int = 7
+) -> str:
+    """Configure automatic memory cleanup settings
+    
+    Args:
+        enabled: Enable or disable auto cleanup
+        max_age_days: Maximum age for entries in days (default: 7)
+    
+    Returns:
+        Configuration result
+    """
+    try:
+        from .memory_system import memory_system
+        
+        # Stop current scheduler if running
+        if memory_system._cleanup_task and not memory_system._cleanup_task.done():
+            await memory_system.stop_cleanup_scheduler()
+        
+        # Update configuration
+        memory_system.auto_cleanup = enabled
+        
+        # Start new scheduler if enabled
+        if enabled:
+            memory_system._cleanup_task = asyncio.create_task(
+                memory_system._auto_cleanup_scheduler()
+            )
+            
+            # Perform immediate cleanup with new settings
+            deleted_count = await memory_system.cleanup_old_entries(
+                max_age=timedelta(days=max_age_days)
+            )
+            
+            return f"Auto cleanup configured: enabled={enabled}, max_age={max_age_days} days. Immediate cleanup removed {deleted_count} entries."
+        else:
+            return f"Auto cleanup disabled."
+            
+    except Exception as e:
+         logger.error(f"Failed to configure auto cleanup: {e}")
+         return f"Error: {str(e)}"
+
+@mcp.tool()
+def get_stream_resource_stats() -> str:
+    """Get streaming resource usage statistics
+    
+    Returns:
+        Streaming resource usage statistics
+    """
+    try:
+        stats = stream_manager.get_resource_stats()
+        
+        response_lines = [
+            "Streaming Resource Statistics:",
+            f"- Memory usage: {stats.get('memory_usage_mb', 'N/A')} MB",
+            f"- Memory limit: {stats.get('memory_limit_mb', 'N/A')} MB",
+            f"- Active streams: {stats.get('active_streams', 0)}",
+            f"- Max streams: {stats.get('max_streams', 'N/A')}",
+            f"- Last cleanup: {stats.get('last_cleanup', 'Never')}",
+            f"- Cleanup interval: {stats.get('cleanup_interval', 'N/A')} seconds"
+        ]
+        
+        frame_buffers = stats.get('frame_buffers', {})
+        if frame_buffers:
+            response_lines.append("\nFrame Buffers:")
+            for stream_id, buffer_size in frame_buffers.items():
+                response_lines.append(f"- {stream_id}: {buffer_size} frames")
+        
+        return "\n".join(response_lines)
+    except Exception as e:
+        logger.error(f"Failed to get stream resource stats: {e}")
+        return f"Error: {str(e)}"
+
+@mcp.tool()
+def configure_stream_resources(
+    max_memory_mb: Optional[int] = None,
+    max_streams: Optional[int] = None,
+    frame_buffer_size: Optional[int] = None,
+    cleanup_interval: Optional[int] = None
+) -> str:
+    """Configure streaming resource limits
+    
+    Args:
+        max_memory_mb: Maximum memory usage in MB (optional)
+        max_streams: Maximum concurrent streams (optional)
+        frame_buffer_size: Maximum frames to buffer per stream (optional)
+        cleanup_interval: Cleanup interval in seconds (optional)
+    
+    Returns:
+        Configuration result
+    """
+    try:
+        stream_manager.configure_resource_limits(
+            max_memory_mb=max_memory_mb,
+            max_streams=max_streams,
+            frame_buffer_size=frame_buffer_size,
+            cleanup_interval=cleanup_interval
+        )
+        
+        config_items = []
+        if max_memory_mb is not None:
+            config_items.append(f"max_memory_mb={max_memory_mb}")
+        if max_streams is not None:
+            config_items.append(f"max_streams={max_streams}")
+        if frame_buffer_size is not None:
+            config_items.append(f"frame_buffer_size={frame_buffer_size}")
+        if cleanup_interval is not None:
+            config_items.append(f"cleanup_interval={cleanup_interval}")
+        
+        return f"Stream resource limits configured: {', '.join(config_items)}"
+    except Exception as e:
+        logger.error(f"Failed to configure stream resources: {e}")
+        return f"Error: {str(e)}"
+
+@mcp.tool()
+def get_database_pool_stats() -> str:
+    """Get database connection pool statistics
+    
+    Returns:
+        Database pool usage statistics
+    """
+    try:
+        from .memory_system import memory_system
+        
+        if not memory_system._db_pool:
+            return "Database pool not initialized"
+        
+        import asyncio
+        stats = asyncio.run(memory_system._db_pool.get_stats())
+        
+        response_lines = [
+            "Database Pool Statistics:",
+            f"- Total connections: {stats.total_connections}",
+            f"- Active connections: {stats.active_connections}",
+            f"- Idle connections: {stats.idle_connections}",
+            f"- Total queries: {stats.total_queries}",
+            f"- Failed queries: {stats.failed_queries}",
+            f"- Average query time: {stats.average_query_time:.4f}s",
+            f"- Pool created: {stats.pool_created_at.strftime('%Y-%m-%d %H:%M:%S')}"
+        ]
+        
+        if stats.last_cleanup:
+            response_lines.append(f"- Last cleanup: {stats.last_cleanup.strftime('%Y-%m-%d %H:%M:%S')}")
+        else:
+            response_lines.append("- Last cleanup: Never")
+        
+        return "\n".join(response_lines)
+    except Exception as e:
+        logger.error(f"Failed to get database pool stats: {e}")
+        return f"Error: {str(e)}"
+
+@mcp.tool()
+def database_pool_health_check() -> str:
+    """Perform database pool health check
+    
+    Returns:
+        Database pool health status
+    """
+    try:
+        from .memory_system import memory_system
+        
+        if not memory_system._db_pool:
+            return "Database pool not initialized"
+        
+        import asyncio
+        health = asyncio.run(memory_system._db_pool.health_check())
+        
+        if health["healthy"]:
+            response_lines = [
+                "Database Pool Health: HEALTHY ✓",
+                f"- Total connections: {health['total_connections']}",
+                f"- Active connections: {health['active_connections']}",
+                f"- Idle connections: {health['idle_connections']}",
+                f"- Pool utilization: {health['pool_utilization']:.1%}",
+                f"- Average query time: {health['average_query_time']:.4f}s"
+            ]
+        else:
+            response_lines = [
+                "Database Pool Health: UNHEALTHY ✗",
+                f"- Error: {health.get('error', 'Unknown error')}"
+            ]
+        
+        return "\n".join(response_lines)
+    except Exception as e:
+        logger.error(f"Failed to perform database health check: {e}")
         return f"Error: {str(e)}"
 
 def setup_logging():

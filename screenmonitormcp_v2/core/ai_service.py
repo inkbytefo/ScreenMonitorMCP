@@ -1,4 +1,4 @@
-"""AI service for ScreenMonitorMCP v2 with OpenAI compatibility."""
+"""AI service for ScreenMonitorMCP v2 with OpenAI compatibility and memory integration."""
 
 from typing import Optional, Dict, Any, List
 import logging
@@ -6,12 +6,14 @@ import sys
 from openai import AsyncOpenAI
 try:
     from ..server.config import config
+    from .memory_system import memory_system
 except ImportError:
     # Fallback for direct execution
     import sys
     from pathlib import Path
     sys.path.append(str(Path(__file__).parent.parent))
     from server.config import config
+    from core.memory_system import memory_system
 
 # Configure logger to use stderr only for MCP compatibility
 logger = logging.getLogger(__name__)
@@ -61,16 +63,24 @@ class AIService:
         image_base64: str,
         prompt: str = "What's in this image?",
         model: Optional[str] = None,
-        max_tokens: int = 300
+        max_tokens: int = 300,
+        store_in_memory: bool = True,
+        stream_id: Optional[str] = None,
+        sequence: Optional[int] = None,
+        tags: Optional[List[str]] = None
     ) -> Dict[str, Any]:
         """
-        Analyze an image using AI vision capabilities.
+        Analyze an image using AI vision capabilities with memory integration.
         
         Args:
             image_base64: Base64 encoded image
             prompt: Prompt for the AI
             model: Model to use (defaults to config.openai_model)
             max_tokens: Maximum tokens in response
+            store_in_memory: Whether to store result in memory system
+            stream_id: Optional stream identifier for memory storage
+            sequence: Optional sequence number for memory storage
+            tags: Optional tags for memory categorization
             
         Returns:
             Dict with analysis results
@@ -103,16 +113,38 @@ class AIService:
                 max_tokens=max_tokens
             )
             
-            return {
+            result = {
                 "success": True,
                 "response": response.choices[0].message.content,
                 "model": model_to_use,
+                "prompt": prompt,
                 "usage": {
                     "prompt_tokens": response.usage.prompt_tokens,
                     "completion_tokens": response.usage.completion_tokens,
                     "total_tokens": response.usage.total_tokens
                 }
             }
+            
+            # Store in memory system if requested
+            if store_in_memory:
+                try:
+                    memory_tags = tags or []
+                    if "image_analysis" not in memory_tags:
+                        memory_tags.append("image_analysis")
+                    
+                    memory_id = await memory_system.store_analysis(
+                        analysis_result=result,
+                        stream_id=stream_id,
+                        sequence=sequence,
+                        tags=memory_tags
+                    )
+                    result["memory_id"] = memory_id
+                    logger.debug(f"Stored analysis in memory: {memory_id}")
+                except Exception as memory_error:
+                    logger.warning(f"Failed to store analysis in memory: {memory_error}")
+                    # Don't fail the entire request if memory storage fails
+            
+            return result
             
         except Exception as e:
             logger.error("AI analysis failed", error=str(e))
@@ -215,8 +247,190 @@ class AIService:
             "configured": self.is_configured(),
             "available": self.is_available(),
             "model": config.openai_model if self.is_configured() else None,
-            "base_url": config.openai_base_url if self.is_configured() else None
+            "base_url": config.openai_base_url if self.is_configured() else None,
+            "memory_enabled": True
         }
+    
+    async def analyze_scene_from_memory(self, 
+                                      query: str,
+                                      stream_id: Optional[str] = None,
+                                      time_range_hours: int = 1) -> Dict[str, Any]:
+        """Analyze scene based on memory data.
+        
+        Args:
+            query: Scene analysis query
+            stream_id: Optional stream ID to filter by
+            time_range_hours: Hours to look back in memory
+            
+        Returns:
+            Scene analysis result
+        """
+        try:
+            from datetime import timedelta
+            
+            # Get relevant memory entries
+            memory_entries = await memory_system.query_memory(
+                query=query,
+                stream_id=stream_id,
+                limit=20,
+                time_range=timedelta(hours=time_range_hours)
+            )
+            
+            if not memory_entries:
+                return {
+                    "success": False,
+                    "error": "No relevant memory data found",
+                    "query": query
+                }
+            
+            # Prepare context from memory
+            context_data = []
+            for entry in memory_entries:
+                if entry.entry_type == "analysis":
+                    context_data.append({
+                        "timestamp": entry.timestamp,
+                        "analysis": entry.content.get("response", ""),
+                        "type": "analysis"
+                    })
+                elif entry.entry_type == "scene":
+                    context_data.append({
+                        "timestamp": entry.timestamp,
+                        "description": entry.content.get("description", ""),
+                        "objects": entry.content.get("objects", []),
+                        "activities": entry.content.get("activities", []),
+                        "type": "scene"
+                    })
+            
+            # Create analysis prompt with context
+            context_summary = "\n".join([
+                f"[{item['timestamp']}] {item.get('analysis', item.get('description', ''))}" 
+                for item in context_data[:10]  # Limit context to avoid token limits
+            ])
+            
+            analysis_prompt = f"""
+            Based on the following recent screen analysis history, please answer this query: "{query}"
+            
+            Recent Analysis History:
+            {context_summary}
+            
+            Please provide a comprehensive answer based on the available context data.
+            """
+            
+            # Use chat completion for analysis
+            result = await self.chat_completion(
+                messages=[
+                    {"role": "system", "content": "You are an AI assistant analyzing screen content based on historical data. Provide accurate and helpful responses based on the given context."},
+                    {"role": "user", "content": analysis_prompt}
+                ],
+                max_tokens=500
+            )
+            
+            if result.get("success"):
+                # Store the scene analysis result
+                analysis_result = {
+                    "query": query,
+                    "response": result["response"],
+                    "context_entries": len(memory_entries),
+                    "time_range_hours": time_range_hours,
+                    "model": result["model"]
+                }
+                
+                try:
+                    memory_id = await memory_system.store_analysis(
+                        analysis_result=analysis_result,
+                        stream_id=stream_id,
+                        tags=["scene_query", "memory_analysis"]
+                    )
+                    analysis_result["memory_id"] = memory_id
+                except Exception as memory_error:
+                    logger.warning(f"Failed to store scene analysis in memory: {memory_error}")
+                
+                return {
+                    "success": True,
+                    **analysis_result
+                }
+            else:
+                return result
+                
+        except Exception as e:
+            logger.error(f"Scene analysis from memory failed: {e}")
+            return {
+                "success": False,
+                "error": str(e),
+                "query": query
+            }
+    
+    async def get_memory_statistics(self) -> Dict[str, Any]:
+        """Get memory system statistics.
+        
+        Returns:
+            Memory system statistics
+        """
+        try:
+            stats = await memory_system.get_statistics()
+            return {
+                "success": True,
+                "statistics": stats
+            }
+        except Exception as e:
+            logger.error(f"Failed to get memory statistics: {e}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
+    
+    async def query_memory_direct(self, 
+                                query: str,
+                                entry_type: Optional[str] = None,
+                                stream_id: Optional[str] = None,
+                                limit: int = 10) -> Dict[str, Any]:
+        """Direct memory query interface.
+        
+        Args:
+            query: Search query
+            entry_type: Filter by entry type
+            stream_id: Filter by stream ID
+            limit: Maximum results
+            
+        Returns:
+            Memory query results
+        """
+        try:
+            entries = await memory_system.query_memory(
+                query=query,
+                entry_type=entry_type,
+                stream_id=stream_id,
+                limit=limit
+            )
+            
+            # Convert entries to serializable format
+            results = []
+            for entry in entries:
+                results.append({
+                    "id": entry.id,
+                    "timestamp": entry.timestamp,
+                    "entry_type": entry.entry_type,
+                    "content": entry.content,
+                    "metadata": entry.metadata,
+                    "tags": entry.tags,
+                    "stream_id": entry.stream_id,
+                    "sequence": entry.sequence
+                })
+            
+            return {
+                "success": True,
+                "query": query,
+                "results": results,
+                "count": len(results)
+            }
+            
+        except Exception as e:
+            logger.error(f"Memory query failed: {e}")
+            return {
+                "success": False,
+                "error": str(e),
+                "query": query
+            }
 
 
 # Global AI service instance

@@ -1,0 +1,293 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  release:
+    types: [ published ]
+
+env:
+  PYTHON_VERSION: '3.11'
+  NODE_VERSION: '18'
+
+jobs:
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.9', '3.10', '3.11']
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+    
+    - name: Cache pip dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements*.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install -r requirements-dev.txt
+    
+    - name: Run linting
+      run: |
+        flake8 screenmonitormcp_v2/ --count --select=E9,F63,F7,F82 --show-source --statistics
+        flake8 screenmonitormcp_v2/ --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+    
+    - name: Run type checking
+      run: |
+        mypy screenmonitormcp_v2/ --ignore-missing-imports
+    
+    - name: Run unit tests
+      run: |
+        pytest tests/ -v --cov=screenmonitormcp_v2 --cov-report=xml --cov-report=html
+    
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./coverage.xml
+        flags: unittests
+        name: codecov-umbrella
+        fail_ci_if_error: false
+
+  security:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install bandit safety
+    
+    - name: Run Bandit security scan
+      run: |
+        bandit -r screenmonitormcp_v2/ -f json -o bandit-report.json
+    
+    - name: Run Safety check
+      run: |
+        safety check --json --output safety-report.json
+    
+    - name: Upload security reports
+      uses: actions/upload-artifact@v3
+      with:
+        name: security-reports
+        path: |
+          bandit-report.json
+          safety-report.json
+
+  build:
+    name: Build Package
+    runs-on: ubuntu-latest
+    needs: [test, security]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+    
+    - name: Install build dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install build twine
+    
+    - name: Build package
+      run: |
+        python -m build
+    
+    - name: Check package
+      run: |
+        twine check dist/*
+    
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: dist-packages
+        path: dist/
+
+  docker:
+    name: Build Docker Image
+    runs-on: ubuntu-latest
+    needs: [test, security]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+    
+    - name: Login to Docker Hub
+      if: github.event_name != 'pull_request'
+      uses: docker/login-action@v3
+      with:
+        username: ${{ secrets.DOCKER_USERNAME }}
+        password: ${{ secrets.DOCKER_PASSWORD }}
+    
+    - name: Extract metadata
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: inkbytefo/screenmonitormcp
+        tags: |
+          type=ref,event=branch
+          type=ref,event=pr
+          type=semver,pattern={{version}}
+          type=semver,pattern={{major}}.{{minor}}
+          type=raw,value=latest,enable={{is_default_branch}}
+    
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        platforms: linux/amd64,linux/arm64
+        push: ${{ github.event_name != 'pull_request' }}
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+  integration-test:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    needs: [build]
+    
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install -r requirements-test.txt
+    
+    - name: Run integration tests
+      env:
+        REDIS_URL: redis://localhost:6379
+      run: |
+        pytest tests/integration/ -v --tb=short
+    
+    - name: Test MCP server startup
+      run: |
+        timeout 30s python -m screenmonitormcp_v2.mcp_main --test-mode || true
+
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: [integration-test, docker]
+    if: github.ref == 'refs/heads/develop'
+    environment: staging
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Deploy to staging
+      run: |
+        echo "Deploying to staging environment..."
+        # Add your staging deployment commands here
+        # Example: kubectl apply -f k8s/staging/
+    
+    - name: Run smoke tests
+      run: |
+        echo "Running smoke tests on staging..."
+        # Add smoke test commands here
+
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [integration-test, docker]
+    if: github.event_name == 'release'
+    environment: production
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Deploy to production
+      run: |
+        echo "Deploying to production environment..."
+        # Add your production deployment commands here
+        # Example: kubectl apply -f k8s/production/
+    
+    - name: Run smoke tests
+      run: |
+        echo "Running smoke tests on production..."
+        # Add smoke test commands here
+    
+    - name: Notify deployment
+      run: |
+        echo "Production deployment completed successfully!"
+        # Add notification commands (Slack, Discord, etc.)
+
+  publish:
+    name: Publish Package
+    runs-on: ubuntu-latest
+    needs: [deploy-production]
+    if: github.event_name == 'release'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+    
+    - name: Download build artifacts
+      uses: actions/download-artifact@v3
+      with:
+        name: dist-packages
+        path: dist/
+    
+    - name: Publish to PyPI
+      env:
+        TWINE_USERNAME: __token__
+        TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
+      run: |
+        pip install twine
+        twine upload dist/*
