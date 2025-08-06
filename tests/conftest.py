@@ -7,7 +7,7 @@ from fastapi.testclient import TestClient
 os.environ['SCREENMONITOR_API_KEY'] = 'test-api-key-123'
 
 # Import after setting environment variable
-from src.server.app import app
+from screenmonitormcp_v2.server.app import app
 
 @pytest.fixture
 def client():

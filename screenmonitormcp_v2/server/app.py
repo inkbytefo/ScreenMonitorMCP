@@ -152,7 +152,7 @@ async def health_check(request: Request):
                 "health_score": health_status['health_score'],
                 "avg_response_time": health_status['metrics']['avg_response_time'],
                 "data_throughput_mb_s": health_status['metrics']['data_throughput_mb_s'],
-                "issues": health_status['issues']
+                "issues_count": float(len(health_status['issues']))
             },
             active_streams=len(active_streams),
             active_connections=connection_stats["total_connections"],

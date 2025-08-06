@@ -238,3 +238,11 @@ tesseract_temp/
 # UI detection cache
 ui_cache/
 element_cache/
+
+# Memory system database files
+memory_system.db
+memory_system.db-shm
+memory_system.db-wal
+*.db
+*.db-shm
+*.db-wal

@@ -2,14 +2,11 @@
 
 import asyncio
 import base64
-import io
 import uuid
 from typing import AsyncGenerator, Dict, Any, Optional, Callable
 from datetime import datetime
 import structlog
-from PIL import Image
-import mss
-import numpy as np
+from .screen_capture import ScreenCapture
 
 try:
     from .memory_system import memory_system
@@ -622,14 +619,10 @@ class ScreenStreamer:
     """Handles screen capture and streaming operations with dual-channel support."""
     
     def __init__(self):
-        self._mss_instance = None
+        self.screen_capture = ScreenCapture()
         self._executor = None
         
-    async def _get_mss(self):
-        """Get MSS instance."""
-        if self._mss_instance is None:
-            self._mss_instance = mss.mss()
-        return self._mss_instance
+
     
     async def capture_screen(
         self,
@@ -640,96 +633,53 @@ class ScreenStreamer:
         resolution: Optional[tuple] = None,
         return_bytes: bool = False
     ) -> Dict[str, Any]:
-        """Capture screen and return as base64."""
+        """Capture screen and return as base64 using unified screen capture service."""
         try:
-            mss_instance = await self._get_mss()
-            
-            if region:
-                # Capture specific region
-                monitor_info = {
-                    "top": region.get("top", 0),
-                    "left": region.get("left", 0),
-                    "width": region.get("width", 1920),
-                    "height": region.get("height", 1080)
-                }
+            # Use unified screen capture service based on quality and format requirements
+            if quality >= 80 and format.lower() == "png":
+                # High quality capture
+                capture_result = await self.screen_capture.capture_hq_frame(format=format)
             else:
-                # Capture entire monitor
-                monitors = mss_instance.monitors
-                if not (0 < monitor < len(monitors)):
-                    return {
-                        "success": False,
-                        "message": f"Invalid monitor number: {monitor}. Available monitors: {len(monitors) - 1}"
-                    }
-                monitor_info = monitors[monitor]
-
-            # Capture screenshot
-            screenshot = mss_instance.grab(monitor_info)
-            
-            # Convert to PIL Image
-            img = Image.frombytes(
-                "RGB",
-                (screenshot.width, screenshot.height),
-                screenshot.rgb
-            )
-            
-            # Enhanced resizing with quality-based optimization
-            if resolution:
-                img = img.resize(resolution, Image.Resampling.LANCZOS)
-            else:
-                # Adaptive resizing based on quality and performance
-                if quality <= 30:  # Very low quality for poor connections
-                    max_size = 480
-                elif quality <= 50:  # Low quality for preview
-                    max_size = 720
-                elif quality <= 70:  # Medium quality
-                    max_size = 1280
-                else:  # High quality
-                    max_size = 1920
-                    
-                if max(img.width, img.height) > max_size:
-                    ratio = max_size / max(img.width, img.height)
-                    new_size = (int(img.width * ratio), int(img.height * ratio))
-                    img = img.resize(new_size, Image.Resampling.LANCZOS)
-            
-            # Enhanced compression with size validation
-            buffer = io.BytesIO()
-            if format.lower() == "jpeg":
-                # Progressive JPEG for better streaming
-                img.save(buffer, format="JPEG", quality=quality, optimize=True, progressive=True)
-            else:
-                img.save(buffer, format="PNG", optimize=True, compress_level=6)
-            
-            # Check if compressed size exceeds limits
-            compressed_size = len(buffer.getvalue())
-            max_size_bytes = getattr(config, 'max_frame_size', 2 * 1024 * 1024)
-            
-            if compressed_size > max_size_bytes:
-                # Re-compress with lower quality if size is too large
-                reduced_quality = max(20, quality - 20)
-                buffer = io.BytesIO()
-                if format.lower() == "jpeg":
-                    img.save(buffer, format="JPEG", quality=reduced_quality, optimize=True, progressive=True)
-                else:
-                    # Convert to JPEG if PNG is too large
-                    img.save(buffer, format="JPEG", quality=reduced_quality, optimize=True, progressive=True)
-                    format = "JPEG"
-                
-                compressed_size = len(buffer.getvalue())
-                logger.info(
-                    "Reduced image quality due to size limit",
-                    original_quality=quality,
-                    reduced_quality=reduced_quality,
-                    final_size=compressed_size
+                # Preview/low quality capture with resolution adjustment
+                capture_result = await self.screen_capture.capture_preview_frame(
+                    quality=quality, 
+                    resolution=resolution
                 )
             
-            img_bytes = buffer.getvalue()
+            if not capture_result.get("success"):
+                return {
+                    "success": False,
+                    "message": capture_result.get("error", "Screen capture failed")
+                }
+            
+            img_bytes = capture_result["image_bytes"]
+            
+            # Check if compressed size exceeds limits and re-compress if needed
+            max_size_bytes = getattr(config, 'max_frame_size', 2 * 1024 * 1024)
+            
+            if len(img_bytes) > max_size_bytes:
+                # Re-compress with lower quality if size is too large
+                reduced_quality = max(20, quality - 20)
+                capture_result = await self.screen_capture.capture_preview_frame(
+                    quality=reduced_quality,
+                    resolution=resolution
+                )
+                
+                if capture_result.get("success"):
+                    img_bytes = capture_result["image_bytes"]
+                    logger.info(
+                        "Reduced image quality due to size limit",
+                        original_quality=quality,
+                        reduced_quality=reduced_quality,
+                        final_size=len(img_bytes)
+                    )
             
             result = {
                 "success": True,
-                "width": img.width,
-                "height": img.height,
-                "format": format.upper(),
-                "size": len(img_bytes),
+                "width": capture_result["width"],
+                "height": capture_result["height"],
+                "format": capture_result["format"].upper(),
+                "size": capture_result["file_size"],
                 "monitor": monitor,
                 "timestamp": datetime.now().isoformat()
             }
@@ -778,6 +728,144 @@ class ScreenStreamer:
         except Exception as e:
             logger.error("Screen stream error", error=str(e), exc_info=True)
             raise
+
+
+# Stream analysis generator moved from ai_vision.py
+async def stream_analysis_generator(
+    stream_id: str,
+    interval_seconds: int = 10,
+    prompt: str = "Analyze this screen content and provide a detailed summary of what's happening.",
+    model: str = None,
+    max_tokens: int = 300
+) -> AsyncGenerator[Dict[str, Any], None]:
+    """
+    Generate continuous AI analysis of screen content.
+    
+    Args:
+        stream_id: Unique stream identifier
+        interval_seconds: Analysis interval in seconds
+        prompt: Analysis prompt for AI
+        model: AI model to use
+        max_tokens: Maximum tokens in response
+        
+    Yields:
+        Analysis results as dictionaries
+    """
+    if not ai_service.is_configured():
+        yield {
+            "type": "error",
+            "data": {"error": "AI service not configured"},
+            "timestamp": datetime.now().isoformat(),
+            "stream_id": stream_id
+        }
+        return
+    
+    sequence = 0
+    
+    try:
+        while True:
+            try:
+                # Capture screen using unified screen streamer
+                capture_result = await screen_streamer.capture_screen(
+                    monitor=1,
+                    quality=80,
+                    format="jpeg"
+                )
+                
+                if not capture_result.get("success") or not capture_result.get("image_data"):
+                    yield {
+                        "type": "error",
+                        "data": {"error": "Failed to capture screen - no image data"},
+                        "timestamp": datetime.now().isoformat(),
+                        "stream_id": stream_id,
+                        "sequence": sequence
+                    }
+                    await asyncio.sleep(interval_seconds)
+                    continue
+                
+                # Analyze with unified AI service
+                image_base64 = capture_result["image_data"]
+                analysis_result = await ai_service.analyze_image(
+                    image_base64=image_base64,
+                    prompt=prompt,
+                    model=model,
+                    max_tokens=max_tokens,
+                    store_in_memory=True,
+                    stream_id=stream_id,
+                    sequence=sequence,
+                    tags=["stream_analysis", "continuous_monitoring"]
+                )
+                
+                if analysis_result.get("success"):
+                    # Create response data
+                    response_data = {
+                        "analysis": analysis_result["response"],
+                        "model": analysis_result["model"],
+                        "prompt": prompt,
+                        "capture_info": {
+                            "timestamp": capture_result["timestamp"],
+                            "monitor": capture_result["monitor"],
+                            "width": capture_result["width"],
+                            "height": capture_result["height"],
+                            "format": capture_result["format"],
+                            "size": capture_result["size"]
+                        },
+                        "usage": analysis_result.get("usage", {
+                            "prompt_tokens": 0,
+                            "completion_tokens": 0,
+                            "total_tokens": 0
+                        }),
+                        "memory_id": analysis_result.get("memory_id")
+                    }
+                    
+                    yield {
+                        "type": "analysis",
+                        "data": response_data,
+                        "timestamp": datetime.now().isoformat(),
+                        "stream_id": stream_id,
+                        "sequence": sequence
+                    }
+                else:
+                    yield {
+                        "type": "error",
+                        "data": {"error": analysis_result.get("error", "Analysis failed")},
+                        "timestamp": datetime.now().isoformat(),
+                        "stream_id": stream_id,
+                        "sequence": sequence
+                    }
+                
+                sequence += 1
+                
+            except Exception as e:
+                logger.error(f"Error in stream analysis: {e}")
+                yield {
+                    "type": "error",
+                    "data": {"error": str(e)},
+                    "timestamp": datetime.now().isoformat(),
+                    "stream_id": stream_id,
+                    "sequence": sequence
+                }
+            
+            await asyncio.sleep(interval_seconds)
+            
+    except asyncio.CancelledError:
+        logger.info(f"Stream analysis cancelled for stream: {stream_id}")
+        yield {
+            "type": "status",
+            "data": {"status": "stopped"},
+            "timestamp": datetime.now().isoformat(),
+            "stream_id": stream_id,
+            "sequence": sequence
+        }
+    except Exception as e:
+        logger.error(f"Fatal error in stream analysis: {e}")
+        yield {
+            "type": "error",
+            "data": {"error": f"Fatal error: {str(e)}"},
+            "timestamp": datetime.now().isoformat(),
+            "stream_id": stream_id,
+            "sequence": sequence
+        }
 
 
 # Global instances

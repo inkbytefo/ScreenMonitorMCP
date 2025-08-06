@@ -3,7 +3,6 @@
 import asyncio
 import json
 import time
-import concurrent.futures
 from typing import Dict, Any, Optional
 import structlog
 from fastapi import WebSocket, WebSocketDisconnect
@@ -12,6 +11,7 @@ from ..models.requests import WebSocketCommand, CommandType
 from ..models.responses import WebSocketResponse, ResponseType
 from .connection import connection_manager
 from .streaming import screen_streamer
+from .screen_capture import ScreenCapture
 
 logger = structlog.get_logger()
 
@@ -22,7 +22,7 @@ class CommandHandler:
     def __init__(self):
         self._active_preview_tasks: Dict[str, asyncio.Task] = {}
         self._connection_streams: Dict[str, str] = {}  # connection_id -> stream_id
-        self._executor = None
+        self.screen_capture = ScreenCapture()
         
     async def handle_command(
         self, 
@@ -165,16 +165,8 @@ class CommandHandler:
                 request_id=command.request_id
             )
             
-            # Use executor to avoid blocking event loop
-            loop = asyncio.get_event_loop()
-            if not self._executor:
-                self._executor = concurrent.futures.ThreadPoolExecutor(max_workers=2)
-            
-            # Capture high-quality frame in thread pool (PNG, lossless)
-            capture_result = await loop.run_in_executor(
-                self._executor,
-                self._capture_hq_frame_sync
-            )
+            # Capture high-quality frame using unified screen capture service
+            capture_result = await self.screen_capture.capture_hq_frame(format="png")
             
             if capture_result["success"]:
                 # Send binary data directly via websocket.send_bytes()
@@ -222,35 +214,7 @@ class CommandHandler:
             except Exception as send_error:
                 logger.error("Failed to send error response", error=str(send_error))
     
-    def _capture_hq_frame_sync(self) -> Dict[str, Any]:
-        """Synchronous high-quality frame capture for use in executor."""
-        try:
-            # Import required modules
-            import io
-            from PIL import ImageGrab
-            
-            # Capture screen using PIL (synchronous)
-            screenshot = ImageGrab.grab()
-            
-            # Convert to PNG (lossless, high quality)
-            img_buffer = io.BytesIO()
-            screenshot.save(img_buffer, format='PNG', optimize=True)
-            image_bytes = img_buffer.getvalue()
-            
-            return {
-                "success": True,
-                "image_bytes": image_bytes,
-                "width": screenshot.width,
-                "height": screenshot.height,
-                "file_size": len(image_bytes),
-                "format": "png"
-            }
-            
-        except Exception as e:
-            return {
-                "success": False,
-                "error": str(e)
-            }
+
     
     async def _handle_unsubscribe(
         self, 
@@ -330,17 +294,10 @@ class CommandHandler:
                 start_time = time.time()
                 
                 try:
-                    # Use executor to avoid blocking event loop
-                    loop = asyncio.get_event_loop()
-                    if not self._executor:
-                        self._executor = concurrent.futures.ThreadPoolExecutor(max_workers=2)
-                    
-                    # Capture low-quality frame in thread pool
-                    frame_data = await loop.run_in_executor(
-                        self._executor,
-                        self._capture_preview_frame_sync,
-                        preview_quality,
-                        preview_resolution
+                    # Capture low-quality frame using unified screen capture service
+                    frame_data = await self.screen_capture.capture_preview_frame(
+                        quality=preview_quality,
+                        resolution=preview_resolution
                     )
                     
                     if frame_data.get("success"):
@@ -406,39 +363,7 @@ class CommandHandler:
                 total_frames=frame_count
             )
     
-    def _capture_preview_frame_sync(self, quality: int, resolution: tuple) -> Dict[str, Any]:
-        """Synchronous preview frame capture for use in executor."""
-        try:
-            # Import required modules
-            import io
-            from PIL import ImageGrab
-            
-            # Capture screen using PIL (synchronous)
-            screenshot = ImageGrab.grab()
-            
-            # Resize if resolution specified
-            if resolution:
-                screenshot = screenshot.resize(resolution, resample=1)  # LANCZOS resampling
-            
-            # Convert to JPEG with specified quality
-            img_buffer = io.BytesIO()
-            screenshot.save(img_buffer, format='JPEG', quality=quality, optimize=True)
-            image_bytes = img_buffer.getvalue()
-            
-            return {
-                "success": True,
-                "image_bytes": image_bytes,
-                "width": screenshot.width,
-                "height": screenshot.height,
-                "file_size": len(image_bytes),
-                "format": "jpeg"
-            }
-            
-        except Exception as e:
-            return {
-                "success": False,
-                "error": str(e)
-            }
+
     
     async def cleanup_connection(self, connection_id: str) -> None:
         """Clean up resources for a disconnected connection."""
@@ -457,10 +382,7 @@ class CommandHandler:
         if connection_id in self._connection_streams:
             del self._connection_streams[connection_id]
         
-        # Shutdown executor if no active connections
-        if not self._active_preview_tasks and self._executor:
-            self._executor.shutdown(wait=False)
-            self._executor = None
+        # Connection cleanup completed
         
         logger.info("Connection cleanup completed", connection_id=connection_id)
 

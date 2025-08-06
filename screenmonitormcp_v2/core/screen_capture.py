@@ -117,6 +117,131 @@ class ScreenCapture:
                 })
             return monitors
     
+    async def capture_hq_frame(self, format: str = "png") -> Dict[str, Any]:
+        """Capture high-quality frame for PNG high-quality captures.
+        
+        Args:
+            format: Image format (png for high quality, jpeg also supported)
+            
+        Returns:
+            Dict containing success status, image_bytes, dimensions, file_size, and format
+        """
+        try:
+            loop = asyncio.get_event_loop()
+            result = await loop.run_in_executor(
+                None, self._capture_hq_frame_sync, format
+            )
+            return result
+        except Exception as e:
+            self.logger.error(f"HQ frame capture failed: {e}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
+    
+    def _capture_hq_frame_sync(self, format: str) -> Dict[str, Any]:
+        """Synchronous high-quality frame capture implementation."""
+        try:
+            with mss.mss() as sct:
+                # Capture primary monitor (monitor 0)
+                monitor = sct.monitors[0]  # Primary monitor
+                screenshot = sct.grab(monitor)
+                
+                # Convert to PIL Image - handle different pixel formats safely
+                try:
+                    img = Image.frombytes("RGB", screenshot.size, screenshot.bgra, "raw", "BGRX")
+                except Exception:
+                    # Fallback to RGBA format if BGRX fails
+                    img = Image.frombytes("RGBA", screenshot.size, screenshot.bgra, "raw", "BGRA")
+                    img = img.convert("RGB")
+                
+                # Save to bytes with high quality
+                img_buffer = io.BytesIO()
+                if format.lower() == "jpeg":
+                    img.save(img_buffer, format="JPEG", quality=95, optimize=True)
+                else:
+                    img.save(img_buffer, format="PNG", optimize=True)
+                
+                image_bytes = img_buffer.getvalue()
+                
+                return {
+                    "success": True,
+                    "image_bytes": image_bytes,
+                    "width": img.width,
+                    "height": img.height,
+                    "file_size": len(image_bytes),
+                    "format": format.lower()
+                }
+                
+        except Exception as e:
+            return {
+                "success": False,
+                "error": str(e)
+            }
+    
+    async def capture_preview_frame(self, quality: int = 40, resolution: Optional[Tuple[int, int]] = None) -> Dict[str, Any]:
+        """Capture low-quality preview frame for JPEG low-quality captures.
+        
+        Args:
+            quality: JPEG quality (1-100, default 40 for low quality)
+            resolution: Optional tuple (width, height) for resizing
+            
+        Returns:
+            Dict containing success status, image_bytes, dimensions, file_size, and format
+        """
+        try:
+            loop = asyncio.get_event_loop()
+            result = await loop.run_in_executor(
+                None, self._capture_preview_frame_sync, quality, resolution
+            )
+            return result
+        except Exception as e:
+            self.logger.error(f"Preview frame capture failed: {e}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
+    
+    def _capture_preview_frame_sync(self, quality: int, resolution: Optional[Tuple[int, int]]) -> Dict[str, Any]:
+        """Synchronous preview frame capture implementation."""
+        try:
+            with mss.mss() as sct:
+                # Capture primary monitor (monitor 0)
+                monitor = sct.monitors[0]  # Primary monitor
+                screenshot = sct.grab(monitor)
+                
+                # Convert to PIL Image - handle different pixel formats safely
+                try:
+                    img = Image.frombytes("RGB", screenshot.size, screenshot.bgra, "raw", "BGRX")
+                except Exception:
+                    # Fallback to RGBA format if BGRX fails
+                    img = Image.frombytes("RGBA", screenshot.size, screenshot.bgra, "raw", "BGRA")
+                    img = img.convert("RGB")
+                
+                # Resize if resolution specified
+                if resolution:
+                    img = img.resize(resolution, Image.Resampling.LANCZOS)
+                
+                # Save to bytes with specified quality (JPEG for preview)
+                img_buffer = io.BytesIO()
+                img.save(img_buffer, format="JPEG", quality=quality, optimize=True)
+                image_bytes = img_buffer.getvalue()
+                
+                return {
+                    "success": True,
+                    "image_bytes": image_bytes,
+                    "width": img.width,
+                    "height": img.height,
+                    "file_size": len(image_bytes),
+                    "format": "jpeg"
+                }
+                
+        except Exception as e:
+            return {
+                "success": False,
+                "error": str(e)
+            }
+
     def is_available(self) -> bool:
         """Check if screen capture is available."""
         try:

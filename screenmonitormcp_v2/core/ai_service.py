@@ -438,6 +438,329 @@ class AIService:
                 "error": str(e),
                 "query": query
             }
+    
+    # Specialized AI methods consolidated from ai_analyzer.py
+    
+    async def detect_ui_elements(self, image_base64: str) -> Dict[str, Any]:
+        """Detect and classify UI elements in the screen.
+        
+        Args:
+            image_base64: Base64 encoded image data
+            
+        Returns:
+            UI elements detection results
+        """
+        prompt = """
+        You are a UI/UX Analysis Expert specializing in interface element detection.
+        
+        Analyze this screenshot and identify all UI elements:
+        
+        1. INTERACTIVE ELEMENTS:
+           - Buttons (primary, secondary, action buttons)
+           - Links and clickable text
+           - Input fields and forms
+           - Dropdown menus and selectors
+           - Checkboxes and radio buttons
+        
+        2. NAVIGATION ELEMENTS:
+           - Menu bars and navigation panels
+           - Breadcrumbs and page indicators
+           - Tabs and accordion sections
+           - Search bars and filters
+        
+        3. CONTENT ELEMENTS:
+           - Headers and titles
+           - Text blocks and paragraphs
+           - Images and media content
+           - Tables and data grids
+           - Cards and containers
+        
+        4. FEEDBACK ELEMENTS:
+           - Progress bars and loading indicators
+           - Notifications and alerts
+           - Tooltips and help text
+           - Status indicators
+        
+        Provide precise locations and descriptions for monitoring and automation purposes.
+        """
+        
+        return await self.analyze_image(
+            image_base64=image_base64,
+            prompt=prompt,
+            max_tokens=1500,
+            store_in_memory=True,
+            tags=["ui_elements", "interface_analysis"]
+        )
+    
+    async def assess_system_performance(self, image_base64: str) -> Dict[str, Any]:
+        """Assess system performance indicators visible on screen.
+        
+        Args:
+            image_base64: Base64 encoded image data
+            
+        Returns:
+            Performance assessment results
+        """
+        prompt = """
+        You are a System Performance Monitoring Expert. Analyze this screenshot for performance indicators.
+        
+        Focus on identifying:
+        
+        1. PERFORMANCE METRICS:
+           - CPU, memory, disk usage indicators
+           - Network activity and bandwidth usage
+           - Response times and latency metrics
+           - Throughput and processing rates
+        
+        2. SYSTEM STATUS:
+           - Application responsiveness
+           - Loading states and progress
+           - Error conditions and warnings
+           - Resource availability
+        
+        3. MONITORING DASHBOARDS:
+           - Charts, graphs, and visualizations
+           - Real-time data displays
+           - Alert panels and notifications
+           - Trend indicators
+        
+        4. HEALTH INDICATORS:
+           - Green/yellow/red status lights
+           - Uptime and availability metrics
+           - Service status indicators
+           - Connection states
+        
+        Provide specific observations about system health and performance for monitoring purposes.
+        """
+        
+        return await self.analyze_image(
+            image_base64=image_base64,
+            prompt=prompt,
+            max_tokens=1500,
+            store_in_memory=True,
+            tags=["performance", "system_monitoring"]
+        )
+    
+    async def detect_anomalies(self, image_base64: str, baseline: str = "") -> Dict[str, Any]:
+        """Detect visual anomalies and unusual patterns in the screen.
+        
+        Args:
+            image_base64: Base64 encoded image data
+            baseline: Optional description of normal state
+            
+        Returns:
+            Anomaly detection results
+        """
+        baseline_context = f"\nBASELINE REFERENCE: {baseline}" if baseline else ""
+        
+        prompt = f"""
+        You are an Anomaly Detection Expert specializing in visual system monitoring.
+        
+        Analyze this screenshot for anomalies, irregularities, and unusual patterns:{baseline_context}
+        
+        Look for:
+        
+        1. VISUAL ANOMALIES:
+           - Unexpected UI elements or layouts
+           - Distorted or corrupted displays
+           - Missing or misplaced components
+           - Unusual color patterns or artifacts
+        
+        2. FUNCTIONAL ANOMALIES:
+           - Error messages and warnings
+           - Frozen or unresponsive interfaces
+           - Unexpected application states
+           - Performance degradation indicators
+        
+        3. SECURITY CONCERNS:
+           - Suspicious pop-ups or dialogs
+           - Unauthorized access attempts
+           - Unusual network activity indicators
+           - Security warnings or alerts
+        
+        4. SYSTEM IRREGULARITIES:
+           - Resource usage spikes
+           - Unexpected process behavior
+           - Configuration changes
+           - Service disruptions
+        
+        Rate the severity of any detected anomalies (LOW/MEDIUM/HIGH/CRITICAL) and provide specific recommendations.
+        """
+        
+        return await self.analyze_image(
+            image_base64=image_base64,
+            prompt=prompt,
+            max_tokens=1500,
+            store_in_memory=True,
+            tags=["anomaly_detection", "security_monitoring"]
+        )
+    
+    async def generate_monitoring_report(self, image_base64: str, context: str = "") -> Dict[str, Any]:
+        """Generate comprehensive monitoring report from screen analysis.
+        
+        Args:
+            image_base64: Base64 encoded image data
+            context: Additional context for the report
+            
+        Returns:
+            Comprehensive monitoring report
+        """
+        context_info = f"\nCONTEXT: {context}" if context else ""
+        
+        prompt = f"""
+        You are a Senior System Monitoring Analyst. Generate a comprehensive monitoring report from this screenshot.{context_info}
+        
+        Structure your report as follows:
+        
+        ## EXECUTIVE SUMMARY
+        - Overall system status
+        - Key findings and observations
+        - Critical issues requiring attention
+        
+        ## DETAILED ANALYSIS
+        
+        ### System State
+        - Application status and responsiveness
+        - Resource utilization
+        - Performance indicators
+        
+        ### User Interface
+        - UI element functionality
+        - Layout and accessibility
+        - User experience factors
+        
+        ### Security & Compliance
+        - Security status indicators
+        - Access control elements
+        - Compliance-related observations
+        
+        ### Performance Metrics
+        - Response times and latency
+        - Throughput and capacity
+        - Resource efficiency
+        
+        ## RECOMMENDATIONS
+        - Immediate actions required
+        - Optimization opportunities
+        - Preventive measures
+        - Next monitoring steps
+        
+        ## RISK ASSESSMENT
+        - Identified risks and their severity
+        - Mitigation strategies
+        - Monitoring priorities
+        
+        Provide actionable insights suitable for technical teams and management.
+        """
+        
+        return await self.analyze_image(
+            image_base64=image_base64,
+            prompt=prompt,
+            max_tokens=2000,
+            store_in_memory=True,
+            tags=["monitoring_report", "comprehensive_analysis"]
+        )
+    
+    async def extract_text(self, image_base64: str) -> Dict[str, Any]:
+        """Extract text from screen with monitoring-focused analysis.
+        
+        Args:
+            image_base64: Base64 encoded image data
+            
+        Returns:
+            Extracted text and metadata with monitoring context
+        """
+        prompt = """
+        You are a Screen Monitor Analysis Expert specializing in text extraction and analysis.
+        
+        Extract and analyze all visible text from this screen capture:
+        
+        1. TEXT CONTENT:
+           - All readable text (exact transcription)
+           - Error messages and alerts
+           - Status indicators and labels
+           - Menu items and button text
+        
+        2. TEXT ORGANIZATION:
+           - Hierarchical structure (headings, subheadings)
+           - Lists, tables, and data structures
+           - Navigation elements
+           - Form fields and input areas
+        
+        3. MONITORING RELEVANCE:
+           - System status messages
+           - Performance metrics (if visible)
+           - Warning or error indicators
+           - Version numbers and timestamps
+        
+        4. CONTEXTUAL ANALYSIS:
+           - Application or system being monitored
+           - User interface state
+           - Potential issues indicated by text
+           - Critical information requiring attention
+        
+        Prioritize accuracy and focus on text that provides monitoring insights.
+        """
+        
+        return await self.analyze_image(
+            image_base64=image_base64,
+            prompt=prompt,
+            max_tokens=1500,
+            store_in_memory=True,
+            tags=["text_extraction", "ocr_analysis"]
+        )
+    
+    async def analyze_screen_for_task(self, image_base64: str, task: str) -> Dict[str, Any]:
+        """Analyze screen for a specific monitoring task with expert-level precision.
+        
+        Args:
+            image_base64: Base64 encoded image data
+            task: Task description
+            
+        Returns:
+            Task-specific analysis with detailed monitoring insights
+        """
+        prompt = f"""
+        You are a specialized Screen Monitor Analysis Expert. Analyze this screenshot with precision and expertise.
+        
+        TASK: {task}
+        
+        Provide a comprehensive analysis including:
+        
+        1. VISUAL ELEMENTS DETECTED:
+           - UI components, buttons, menus, dialogs
+           - Text content and readability
+           - Icons, images, and graphical elements
+           - Layout structure and organization
+        
+        2. SYSTEM STATE ASSESSMENT:
+           - Application status and responsiveness
+           - Error messages or warnings
+           - Loading states or progress indicators
+           - Resource usage indicators (if visible)
+        
+        3. MONITORING INSIGHTS:
+           - Performance indicators
+           - User interaction opportunities
+           - Potential issues or anomalies
+           - Security-related observations
+        
+        4. ACTIONABLE RECOMMENDATIONS:
+           - Immediate actions required
+           - Optimization opportunities
+           - Risk mitigation steps
+           - Next monitoring checkpoints
+        
+        Focus on technical accuracy and provide specific, actionable insights for system monitoring purposes.
+        """
+        
+        return await self.analyze_image(
+            image_base64=image_base64,
+            prompt=prompt,
+            max_tokens=1500,
+            store_in_memory=True,
+            tags=["task_analysis", "monitoring_task"]
+        )
 
 
 # Global AI service instance

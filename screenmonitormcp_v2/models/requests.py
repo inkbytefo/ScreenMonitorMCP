@@ -58,7 +58,7 @@ class BaseRequest(BaseModel):
 class ScreenCaptureRequest(BaseRequest):
     """Request model for screen capture operations."""
     capture_mode: str = Field("monitor", description="Capture mode: monitor, window, region, all")
-    monitor_number: int = Field(1, description="Monitor number for capture")
+    monitor: int = Field(1, description="Monitor number for capture")
     capture_active_window: bool = Field(False, description="Capture active window")
     region: Optional[Dict[str, int]] = Field(None, description="Region coordinates")
     output_format: str = Field("png", description="Output format: png, jpeg")
@@ -101,7 +101,7 @@ class AIModelListRequest(BaseRequest):
 
 class ScreenAnalysisRequest(BaseRequest):
     """Request model for screen analysis."""
-    monitor_number: int = Field(1, description="Monitor number to analyze")
+    monitor: int = Field(1, description="Monitor number to analyze")
     region: Optional[Dict[str, int]] = Field(None, description="Region coordinates")
     prompt: str = Field("Analyze this screen content", description="Analysis prompt")
     model: Optional[str] = Field(None, description="AI model to use")

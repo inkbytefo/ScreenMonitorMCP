@@ -66,6 +66,15 @@ class ServerConfig(BaseSettings):
     metrics_port: int = Field(9090, description="Metrics server port")
     health_check_interval: int = Field(30, description="Health check interval in seconds")
     
+    # MCP Server settings (from core/config.py)
+    mcp_server_name: str = Field("screenmonitormcp-v2", description="MCP server name")
+    mcp_server_version: str = Field("2.0.0", description="MCP server version")
+    mcp_protocol_version: str = Field("2025-06-18", description="MCP protocol version")
+    
+    # Screen capture settings (from core/config.py)
+    default_image_format: str = Field("png", description="Default image format for screen captures")
+    default_image_quality: int = Field(85, description="Default image quality for screen captures")
+    
     class Config:
         """Pydantic configuration."""
         

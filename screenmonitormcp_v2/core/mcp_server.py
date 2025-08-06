@@ -26,10 +26,9 @@ from mcp.server.fastmcp import FastMCP
 try:
     from .screen_capture import ScreenCapture
     from .ai_service import ai_service
-    from .ai_analyzer import AIAnalyzer
     from .streaming import stream_manager
     from .performance_monitor import performance_monitor
-    from .config import Config
+    from ..server.config import config
 except ImportError:
     # Fallback for direct execution
     import sys
@@ -37,10 +36,9 @@ except ImportError:
     sys.path.append(str(Path(__file__).parent.parent))
     from core.screen_capture import ScreenCapture
     from core.ai_service import ai_service
-    from core.ai_analyzer import AIAnalyzer
     from core.streaming import stream_manager
     from core.performance_monitor import performance_monitor
-    from core.config import Config
+    from server.config import config
 
 # Configure logger to use stderr for MCP mode
 logger = logging.getLogger(__name__)
@@ -54,43 +52,9 @@ if not logger.handlers:
 mcp = FastMCP("screenmonitormcp-v2")
 
 # Initialize components
-config = Config()
 screen_capture = ScreenCapture()
-ai_analyzer = AIAnalyzer()
 
-@mcp.tool()
-async def capture_screen(
-    monitor: int = 0,
-    region: Optional[dict] = None,
-    format: str = "png"
-) -> str:
-    """Capture a screenshot of the current screen
-    
-    Args:
-        monitor: Monitor number to capture (0 for primary)
-        region: Specific region to capture with x, y, width, height
-        format: Image format (png or jpeg)
-    
-    Returns:
-        Base64 encoded image data
-    """
-    try:
-        if region:
-            # Convert region dict to proper format for screen_capture
-            region_dict = {
-                'x': region.get('x', 0),
-                'y': region.get('y', 0),
-                'width': region.get('width', 1920),
-                'height': region.get('height', 1080)
-            }
-            image_data = await screen_capture.capture_screen(monitor, region_dict, format)
-        else:
-            image_data = await screen_capture.capture_screen(monitor, None, format)
-        
-        return base64.b64encode(image_data).decode('utf-8')
-    except Exception as e:
-        logger.error(f"Screen capture failed: {e}")
-        return f"Error: {str(e)}"
+# capture_screen function removed
 
 @mcp.tool()
 async def analyze_screen(
@@ -112,9 +76,11 @@ async def analyze_screen(
         if not ai_service.is_available():
             return "Error: AI service is not available. Please configure your AI provider."
         
-        image_data = await screen_capture.capture_screen(monitor)
-        # Convert image data to base64 for ai_service
-        image_base64 = base64.b64encode(image_data).decode('utf-8')
+        capture_result = await screen_capture.capture_screen(monitor)
+        if not capture_result.get("success"):
+            return f"Error: Failed to capture screen - {capture_result.get('message', 'Unknown error')}"
+        
+        image_base64 = capture_result["image_data"]
         result = await ai_service.analyze_image(image_base64, query)
         
         if result.get("success"):
@@ -125,38 +91,7 @@ async def analyze_screen(
         logger.error(f"Screen analysis failed: {e}")
         return f"Error: {str(e)}"
 
-@mcp.tool()
-async def analyze_image(
-    image_base64: str,
-    prompt: str = "What's in this image?",
-    model: Optional[str] = None,
-    max_tokens: int = 300
-) -> str:
-    """Analyze a provided image using AI vision capabilities
-    
-    Args:
-        image_base64: Base64 encoded image data
-        prompt: What to analyze or look for in the image
-        model: AI model to use for analysis
-        max_tokens: Maximum tokens for response
-    
-    Returns:
-        Analysis result as text
-    """
-    try:
-        if not ai_service.is_available():
-            return "Error: AI service is not available. Please configure your AI provider."
-        
-        # Use ai_service.analyze_image instead of ai_analyzer.analyze_image
-        result = await ai_service.analyze_image(image_base64, prompt, model, max_tokens)
-        
-        if result.get("success"):
-            return result.get("response", "No analysis available")
-        else:
-            return f"Error: {result.get('error', 'Unknown error occurred')}"
-    except Exception as e:
-        logger.error(f"Image analysis failed: {e}")
-        return f"Error: {str(e)}"
+# analyze_image function removed
 
 @mcp.tool()
 async def chat_completion(
@@ -229,135 +164,11 @@ def get_ai_status() -> str:
         logger.error(f"Failed to get AI status: {e}")
         return f"Error: {str(e)}"
 
-@mcp.tool()
-async def analyze_scene_from_memory(
-    query: str,
-    stream_id: Optional[str] = None,
-    time_range_hours: int = 1
-) -> str:
-    """Analyze scene based on stored memory data
-    
-    Args:
-        query: Scene analysis query (e.g., "What happened in the last hour?", "What objects were visible?")
-        stream_id: Optional stream ID to filter analysis
-        time_range_hours: Hours to look back in memory (default: 1)
-    
-    Returns:
-        Scene analysis result based on memory
-    """
-    try:
-        if not ai_service.is_available():
-            return "Error: AI service is not available. Please configure your AI provider."
-        
-        result = await ai_service.analyze_scene_from_memory(
-            query=query,
-            stream_id=stream_id,
-            time_range_hours=time_range_hours
-        )
-        
-        if result.get("success"):
-            response = result.get("response", "No analysis available")
-            context_count = result.get("context_entries", 0)
-            return f"Scene Analysis: {response}\n\nBased on {context_count} memory entries from the last {time_range_hours} hour(s)."
-        else:
-            return f"Error: {result.get('error', 'Unknown error occurred')}"
-    except Exception as e:
-        logger.error(f"Scene analysis from memory failed: {e}")
-        return f"Error: {str(e)}"
+# First analyze_scene_from_memory function removed (duplicate)
 
-@mcp.tool()
-async def query_memory(
-    query: str,
-    entry_type: Optional[str] = None,
-    stream_id: Optional[str] = None,
-    limit: int = 10
-) -> str:
-    """Query the memory system for stored analysis data
-    
-    Args:
-        query: Search query for memory entries
-        entry_type: Filter by entry type ('analysis', 'scene', 'context')
-        stream_id: Filter by stream ID
-        limit: Maximum number of results (default: 10)
-    
-    Returns:
-        Memory query results
-    """
-    try:
-        result = await ai_service.query_memory_direct(
-            query=query,
-            entry_type=entry_type,
-            stream_id=stream_id,
-            limit=limit
-        )
-        
-        if result.get("success"):
-            results = result.get("results", [])
-            count = result.get("count", 0)
-            
-            if count == 0:
-                return f"No memory entries found for query: '{query}'"
-            
-            response_lines = [f"Found {count} memory entries for query: '{query}'\n"]
-            
-            for i, entry in enumerate(results[:5], 1):  # Show first 5 results
-                timestamp = entry.get("timestamp", "Unknown")
-                entry_type = entry.get("entry_type", "Unknown")
-                content = entry.get("content", {})
-                
-                if entry_type == "analysis":
-                    analysis_text = content.get("response", "No analysis text")
-                    response_lines.append(f"{i}. [{timestamp}] Analysis: {analysis_text[:200]}...")
-                elif entry_type == "scene":
-                    description = content.get("description", "No description")
-                    objects = content.get("objects", [])
-                    response_lines.append(f"{i}. [{timestamp}] Scene: {description} (Objects: {', '.join(objects[:5])})")
-                else:
-                    response_lines.append(f"{i}. [{timestamp}] {entry_type}: {str(content)[:200]}...")
-            
-            if count > 5:
-                response_lines.append(f"\n... and {count - 5} more entries.")
-            
-            return "\n".join(response_lines)
-        else:
-            return f"Error: {result.get('error', 'Unknown error occurred')}"
-    except Exception as e:
-        logger.error(f"Memory query failed: {e}")
-        return f"Error: {str(e)}"
+# First query_memory function removed (duplicate)
 
-@mcp.tool()
-async def get_memory_statistics() -> str:
-    """Get memory system statistics and health information
-    
-    Returns:
-        Memory system statistics
-    """
-    try:
-        result = await ai_service.get_memory_statistics()
-        
-        if result.get("success"):
-            stats = result.get("statistics", {})
-            
-            response_lines = [
-                "Memory System Statistics:",
-                f"- Total entries: {stats.get('total_entries', 0)}",
-                f"- Recent entries (24h): {stats.get('recent_entries_24h', 0)}",
-                f"- Database path: {stats.get('database_path', 'Unknown')}",
-                f"- Initialized: {stats.get('initialized', False)}"
-            ]
-            
-            entries_by_type = stats.get("entries_by_type", {})
-            if entries_by_type:
-                response_lines.append("\nEntries by type:")
-                for entry_type, count in entries_by_type.items():
-                    response_lines.append(f"- {entry_type}: {count}")
-            
-            return "\n".join(response_lines)
-        else:
-            return f"Error: {result.get('error', 'Unknown error occurred')}"
-    except Exception as e:
-        logger.error(f"Failed to get memory statistics: {e}")
-        return f"Error: {str(e)}"
+# First get_memory_statistics function removed (duplicate)
 
 @mcp.tool()
 def get_performance_metrics() -> str:
@@ -634,27 +445,12 @@ async def configure_auto_cleanup(
     try:
         from .memory_system import memory_system
         
-        # Stop current scheduler if running
-        if memory_system._cleanup_task and not memory_system._cleanup_task.done():
-            await memory_system.stop_cleanup_scheduler()
+        result = await memory_system.configure_auto_cleanup(enabled, max_age_days)
         
-        # Update configuration
-        memory_system.auto_cleanup = enabled
-        
-        # Start new scheduler if enabled
-        if enabled:
-            memory_system._cleanup_task = asyncio.create_task(
-                memory_system._auto_cleanup_scheduler()
-            )
-            
-            # Perform immediate cleanup with new settings
-            deleted_count = await memory_system.cleanup_old_entries(
-                max_age=timedelta(days=max_age_days)
-            )
-            
-            return f"Auto cleanup configured: enabled={enabled}, max_age={max_age_days} days. Immediate cleanup removed {deleted_count} entries."
+        if result.get("success"):
+            return result.get("message", "Auto cleanup configured successfully")
         else:
-            return f"Auto cleanup disabled."
+            return f"Error: {result.get('error', 'Unknown error occurred')}"
             
     except Exception as e:
          logger.error(f"Failed to configure auto cleanup: {e}")
@@ -818,14 +614,18 @@ async def detect_ui_elements(
         UI elements detection results as text
     """
     try:
-        if not ai_analyzer.client:
-            return "Error: AI analyzer is not available. Please configure your OpenAI API key."
+        if not ai_service.is_available():
+            return "Error: AI service is not available. Please configure your AI provider."
         
-        image_data = await screen_capture.capture_screen(monitor)
-        result = await ai_analyzer.detect_ui_elements(image_data)
+        capture_result = await screen_capture.capture_screen(monitor)
+        if not capture_result.get("success"):
+            return f"Error: Failed to capture screen - {capture_result.get('message', 'Unknown error')}"
+        
+        image_base64 = capture_result["image_data"]
+        result = await ai_service.detect_ui_elements(image_base64)
         
         if result.get("success"):
-            return result.get("analysis", "No analysis available")
+            return result.get("response", "No analysis available")
         else:
             return f"Error: {result.get('error', 'Unknown error occurred')}"
     except Exception as e:
@@ -845,14 +645,18 @@ async def assess_system_performance(
         Performance assessment results as text
     """
     try:
-        if not ai_analyzer.client:
-            return "Error: AI analyzer is not available. Please configure your OpenAI API key."
+        if not ai_service.is_available():
+            return "Error: AI service is not available. Please configure your AI provider."
         
-        image_data = await screen_capture.capture_screen(monitor)
-        result = await ai_analyzer.assess_system_performance(image_data)
+        capture_result = await screen_capture.capture_screen(monitor)
+        if not capture_result.get("success"):
+            return f"Error: Failed to capture screen - {capture_result.get('message', 'Unknown error')}"
+        
+        image_base64 = capture_result["image_data"]
+        result = await ai_service.assess_system_performance(image_base64)
         
         if result.get("success"):
-            return result.get("analysis", "No analysis available")
+            return result.get("response", "No analysis available")
         else:
             return f"Error: {result.get('error', 'Unknown error occurred')}"
     except Exception as e:
@@ -874,14 +678,18 @@ async def detect_anomalies(
         Anomaly detection results as text
     """
     try:
-        if not ai_analyzer.client:
-            return "Error: AI analyzer is not available. Please configure your OpenAI API key."
+        if not ai_service.is_available():
+            return "Error: AI service is not available. Please configure your AI provider."
         
-        image_data = await screen_capture.capture_screen(monitor)
-        result = await ai_analyzer.detect_anomalies(image_data, baseline_description)
+        capture_result = await screen_capture.capture_screen(monitor)
+        if not capture_result.get("success"):
+            return f"Error: Failed to capture screen - {capture_result.get('message', 'Unknown error')}"
+        
+        image_base64 = capture_result["image_data"]
+        result = await ai_service.detect_anomalies(image_base64, baseline_description)
         
         if result.get("success"):
-            return result.get("analysis", "No analysis available")
+            return result.get("response", "No analysis available")
         else:
             return f"Error: {result.get('error', 'Unknown error occurred')}"
     except Exception as e:
@@ -903,14 +711,18 @@ async def generate_monitoring_report(
         Comprehensive monitoring report as text
     """
     try:
-        if not ai_analyzer.client:
-            return "Error: AI analyzer is not available. Please configure your OpenAI API key."
+        if not ai_service.is_available():
+            return "Error: AI service is not available. Please configure your AI provider."
         
-        image_data = await screen_capture.capture_screen(monitor)
-        result = await ai_analyzer.generate_monitoring_report(image_data, context)
+        capture_result = await screen_capture.capture_screen(monitor)
+        if not capture_result.get("success"):
+            return f"Error: Failed to capture screen - {capture_result.get('message', 'Unknown error')}"
+        
+        image_base64 = capture_result["image_data"]
+        result = await ai_service.generate_monitoring_report(image_base64, context)
         
         if result.get("success"):
-            return result.get("analysis", "No analysis available")
+            return result.get("response", "No analysis available")
         else:
             return f"Error: {result.get('error', 'Unknown error occurred')}"
     except Exception as e:

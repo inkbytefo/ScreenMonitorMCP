@@ -12,9 +12,8 @@ from typing import Dict, Any, List, Optional
 from ..models.requests import ScreenCaptureRequest, StreamRequest, AIImageAnalysisRequest, AIChatRequest, AIModelListRequest, ScreenAnalysisRequest
 from ..models.responses import ScreenCaptureResponse, StreamResponse, AIModelListResponse, AIImageAnalysisResponse, AIChatResponse, AIStatusResponse, ScreenAnalysisResponse
 from ..core.connection import connection_manager
-from ..core.streaming import stream_manager, screen_streamer
+from ..core.streaming import stream_manager, screen_streamer, stream_analysis_generator
 from ..core.ai_service import ai_service
-from ..core.ai_vision import AIVisionAnalyzer, stream_analysis_generator
 from ..core.performance_monitor import performance_monitor
 from .config import config
 
@@ -58,7 +57,7 @@ async def capture_screen(request: ScreenCaptureRequest):
     """Capture screen endpoint."""
     try:
         screen_data = await screen_streamer.capture_screen(
-            monitor=request.monitor_number,
+            monitor=request.monitor,
             region=request.region,
             quality=request.quality,
             format=request.output_format
@@ -717,22 +716,21 @@ async def analyze_screen(request: ScreenAnalysisRequest):
     Captures the current screen and analyzes it with AI vision.
     """
     try:
-        from ..core.streaming import ScreenStreamer
+        from ..core.screen_capture import ScreenCapture
         
         # Initialize components
-        analyzer = AIVisionAnalyzer()
-        streamer = ScreenStreamer()
+        screen_capture = ScreenCapture()
         
         # Validate AI service
-        if not analyzer.client:
+        if not ai_service.is_available():
             raise HTTPException(
                 status_code=503,
                 detail="AI service not configured or unavailable"
             )
         
         # Capture screen
-        capture_result = await streamer.capture_screen(
-            monitor=request.monitor_number,
+        capture_result = await screen_capture.capture_screen(
+            monitor=request.monitor,
             region=request.region,
             quality=80,
             format="jpeg"
@@ -744,25 +742,32 @@ async def analyze_screen(request: ScreenAnalysisRequest):
                 detail=f"Failed to capture screen: {capture_result.get('message', 'Unknown error')}"
             )
         
-        # Analyze with AI
-        analysis = await analyzer.analyze_image(
+        # Analyze with AI using unified service
+        analysis_result = await ai_service.analyze_image(
             image_base64=capture_result["image_data"],
             prompt=request.prompt,
             model=request.model,
             max_tokens=request.max_tokens
         )
         
+        # Check if analysis was successful
+        if not analysis_result.get("success"):
+            raise HTTPException(
+                status_code=500,
+                detail=f"AI analysis failed: {analysis_result.get('error', 'Unknown error')}"
+            )
+        
         # Create response
         return {
             "success": True,
             "message": "Screen analyzed successfully",
             "data": {
-                "analysis": analysis,
-                "model": request.model or config.openai_model,
+                "analysis": analysis_result["response"],
+                "model": analysis_result["model"],
                 "prompt": request.prompt,
                 "capture_info": {
                     "timestamp": datetime.now().isoformat(),
-                    "monitor": request.monitor_number,
+                    "monitor": request.monitor,
                     "image_size": {
                         "width": capture_result["width"],
                         "height": capture_result["height"]
@@ -770,11 +775,12 @@ async def analyze_screen(request: ScreenAnalysisRequest):
                     "format": capture_result["format"],
                     "file_size": capture_result["size"]
                 },
-                "usage": {
-                    "prompt_tokens": 0,  # Will be updated when OpenAI returns usage
+                "usage": analysis_result.get("usage", {
+                    "prompt_tokens": 0,
                     "completion_tokens": 0,
                     "total_tokens": 0
-                }
+                }),
+                "memory_id": analysis_result.get("memory_id")
             }
         }
         
@@ -792,7 +798,7 @@ async def analyze_screen(request: ScreenAnalysisRequest):
 @api_router.get("/ai/models")
 async def list_ai_models():
     """List available AI models from the configured provider."""
-    if not ai_service.is_configured():
+    if not ai_service.is_available():
         raise HTTPException(
             status_code=503,
             detail="AI service not configured. Please set OPENAI_API_KEY."
@@ -827,7 +833,7 @@ async def analyze_image(
         "max_tokens": 300  # optional
     }
     """
-    if not ai_service.is_configured():
+    if not ai_service.is_available():
         raise HTTPException(
             status_code=503,
             detail="AI service not configured. Please set OPENAI_API_KEY."
@@ -882,7 +888,7 @@ async def chat_completion(
         "temperature": 0.7  # optional
     }
     """
-    if not ai_service.is_configured():
+    if not ai_service.is_available():
         raise HTTPException(
             status_code=503,
             detail="AI service not configured. Please set OPENAI_API_KEY."
@@ -926,7 +932,7 @@ async def ai_status():
         "success": True,
         "message": "AI service status retrieved",
         "data": {
-            "configured": ai_service.is_configured(),
+            "configured": ai_service.is_available(),
             "base_url": config.openai_base_url or "https://api.openai.com/v1",
             "model": config.openai_model,
             "timeout": config.openai_timeout

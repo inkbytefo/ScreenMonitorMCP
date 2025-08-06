@@ -538,6 +538,57 @@ class MemorySystem:
             self._cleanup_task = None
             logger.info("Auto cleanup scheduler stopped")
     
+    async def configure_auto_cleanup(self, enabled: bool, max_age_days: int = 7) -> Dict[str, Any]:
+        """Configure automatic memory cleanup settings.
+        
+        Args:
+            enabled: Enable or disable auto cleanup
+            max_age_days: Maximum age for entries in days (default: 7)
+            
+        Returns:
+            Configuration result with status and cleanup count
+        """
+        try:
+            # Stop current scheduler if running
+            if self._cleanup_task and not self._cleanup_task.done():
+                await self.stop_cleanup_scheduler()
+            
+            # Update configuration
+            self.auto_cleanup = enabled
+            
+            # Start new scheduler if enabled
+            if enabled:
+                self._cleanup_task = asyncio.create_task(
+                    self._auto_cleanup_scheduler()
+                )
+                
+                # Perform immediate cleanup with new settings
+                deleted_count = await self.cleanup_old_entries(
+                    max_age=timedelta(days=max_age_days)
+                )
+                
+                return {
+                    "success": True,
+                    "enabled": enabled,
+                    "max_age_days": max_age_days,
+                    "immediate_cleanup_count": deleted_count,
+                    "message": f"Auto cleanup configured: enabled={enabled}, max_age={max_age_days} days. Immediate cleanup removed {deleted_count} entries."
+                }
+            else:
+                return {
+                    "success": True,
+                    "enabled": enabled,
+                    "message": "Auto cleanup disabled."
+                }
+                
+        except Exception as e:
+            logger.error(f"Failed to configure auto cleanup: {e}")
+            return {
+                "success": False,
+                "error": str(e),
+                "message": f"Error configuring auto cleanup: {str(e)}"
+            }
+    
     async def __aenter__(self):
         """Async context manager entry."""
         await self.initialize()
