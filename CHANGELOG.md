@@ -5,6 +5,28 @@ All notable changes to ScreenMonitorMCP v2 will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.8] - 2025-01-08
+
+### 🐛 Bug Fixes
+- **Database Pool Functions**: Fixed `asyncio.run()` errors in `get_database_pool_stats()` and `database_pool_health_check()` by converting them to proper async functions
+- **Screen Analysis Functions**: Fixed `'bytes' object has no attribute 'get'` errors by updating `capture_screen()` to return dictionary format with `success`, `image_data`, `format`, and `size` keys
+- **MCP Tool Compatibility**: All MCP tools now work correctly without runtime errors
+
+### 🔧 Technical Improvements
+- **Async Consistency**: Database pool functions now properly use `await` instead of `asyncio.run()`
+- **Return Format Standardization**: Screen capture functions now consistently return structured dictionaries
+- **Backward Compatibility**: Added `capture_screen_raw()` method for raw bytes when needed
+
+### ✅ Testing
+- All previously failing MCP tools now pass testing:
+  - `get_database_pool_stats` ✓
+  - `database_pool_health_check` ✓
+  - `analyze_screen` ✓
+  - `detect_ui_elements` ✓
+  - `assess_system_performance` ✓
+  - `detect_anomalies` ✓
+  - `generate_monitoring_report` ✓
+
 ## [2.0.7] - 2025-01-08
 
 ### 🏗️ Architecture Refactoring - Major Quality Improvements

@@ -529,7 +529,7 @@ def configure_stream_resources(
         return f"Error: {str(e)}"
 
 @mcp.tool()
-def get_database_pool_stats() -> str:
+async def get_database_pool_stats() -> str:
     """Get database connection pool statistics
     
     Returns:
@@ -541,8 +541,7 @@ def get_database_pool_stats() -> str:
         if not memory_system._db_pool:
             return "Database pool not initialized"
         
-        import asyncio
-        stats = asyncio.run(memory_system._db_pool.get_stats())
+        stats = await memory_system._db_pool.get_stats()
         
         response_lines = [
             "Database Pool Statistics:",
@@ -566,7 +565,7 @@ def get_database_pool_stats() -> str:
         return f"Error: {str(e)}"
 
 @mcp.tool()
-def database_pool_health_check() -> str:
+async def database_pool_health_check() -> str:
     """Perform database pool health check
     
     Returns:
@@ -578,8 +577,7 @@ def database_pool_health_check() -> str:
         if not memory_system._db_pool:
             return "Database pool not initialized"
         
-        import asyncio
-        health = asyncio.run(memory_system._db_pool.health_check())
+        health = await memory_system._db_pool.health_check()
         
         if health["healthy"]:
             response_lines = [

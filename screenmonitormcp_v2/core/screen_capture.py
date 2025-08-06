@@ -31,8 +31,44 @@ class ScreenCapture:
         self.logger = logging.getLogger(__name__)
     
     async def capture_screen(self, monitor: int = 0, region: Optional[Dict[str, int]] = None, 
-                           format: str = "png") -> bytes:
+                           format: str = "png") -> Dict[str, Any]:
         """Capture screen and return image data.
+        
+        Args:
+            monitor: Monitor number to capture (0 for primary)
+            region: Optional region dict with x, y, width, height
+            format: Image format (png, jpeg)
+            
+        Returns:
+            Dict containing success status and image_data as base64 string
+        """
+        try:
+            # Run capture in executor to avoid blocking
+            loop = asyncio.get_event_loop()
+            image_bytes = await loop.run_in_executor(
+                None, self._capture_screen_sync, monitor, region, format
+            )
+            
+            # Convert to base64 for MCP compatibility
+            image_base64 = base64.b64encode(image_bytes).decode('utf-8')
+            
+            return {
+                "success": True,
+                "image_data": image_base64,
+                "format": format,
+                "size": len(image_bytes)
+            }
+        except Exception as e:
+            self.logger.error(f"Screen capture failed: {e}")
+            return {
+                "success": False,
+                "message": str(e),
+                "image_data": None
+            }
+    
+    async def capture_screen_raw(self, monitor: int = 0, region: Optional[Dict[str, int]] = None, 
+                               format: str = "png") -> bytes:
+        """Capture screen and return raw image bytes (for backward compatibility).
         
         Args:
             monitor: Monitor number to capture (0 for primary)
@@ -52,7 +88,7 @@ class ScreenCapture:
         except Exception as e:
             self.logger.error(f"Screen capture failed: {e}")
             raise
-    
+
     def _capture_screen_sync(self, monitor: int, region: Optional[Dict[str, int]], 
                            format: str) -> bytes:
         """Synchronous screen capture implementation."""
