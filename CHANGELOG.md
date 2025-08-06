@@ -5,6 +5,29 @@ All notable changes to ScreenMonitorMCP v2 will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.9] - 2025-01-08
+
+### 🧹 Dependencies Cleanup
+- **Removed Unused Dependencies**: Eliminated 11 unused dependencies to reduce package size and installation time
+  - Removed: `sse-starlette`, `python-socketio`, `python-multipart`, `opencv-python`, `pytesseract`, `easyocr`, `pygetwindow`, `pyautogui`, `scikit-learn`, `pandas`, `prometheus-client`, `tenacity`
+  - Added missing: `aiosqlite` (was used but not declared)
+- **Optimized Package Size**: Reduced from 21 to 11 core dependencies (~50% reduction)
+- **Faster Installation**: Significantly reduced installation time by removing heavy ML/CV libraries
+- **Cleaner Requirements**: Updated both `pyproject.toml` and `requirements.txt` with only essential dependencies
+
+### 📦 Core Dependencies (Final List)
+- `fastapi` - Web framework
+- `uvicorn` - ASGI server  
+- `mss` - Screen capture
+- `Pillow` - Image processing
+- `openai` - AI integration
+- `python-dotenv` - Environment variables
+- `pydantic` - Data validation
+- `structlog` - Structured logging
+- `aiosqlite` - Async SQLite
+- `mcp` - Model Context Protocol
+- `psutil` - System monitoring (optional)
+
 ## [2.0.8] - 2025-01-08
 
 ### 🐛 Bug Fixes
