@@ -9,6 +9,9 @@
 .env.staging
 *.env
 
+# Kiro IDE files
+.kiro/
+
 # API Keys and sensitive data
 api_keys.txt
 secrets.json

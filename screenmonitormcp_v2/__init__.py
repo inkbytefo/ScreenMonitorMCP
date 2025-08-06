@@ -4,7 +4,7 @@ ScreenMonitorMCP v2 - Streamable HTTP/SSE Architecture
 Revolutionary AI Vision Server with modern HTTP/SSE/WebSocket transport.
 """
 
-__version__ = "2.0.0"
+__version__ = "2.0.7"
 __author__ = "inkbytefo"
 __email__ = "inkbytefo@gmail.com"
 __license__ = "MIT"
