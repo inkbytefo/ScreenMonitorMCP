@@ -5,6 +5,8 @@
 [![Python](https://img.shields.io/pypi/pyversions/screenmonitormcp-v2.svg)](https://pypi.org/project/screenmonitormcp-v2/)
 [![Verified on MseeP](https://mseep.ai/badge.svg)](https://mseep.ai/app/a2dbda0f-f46d-40e1-9c13-0b47eff9df3a)
 [![MseeP.ai Security Assessment Badge](https://mseep.net/pr/inkbytefo-screenmonitormcp-badge.png)](https://mseep.ai/app/inkbytefo-screenmonitormcp)
+
+[![Trust Score](https://archestra.ai/mcp-catalog/api/badge/quality/inkbytefo/screenmonitormcp)](https://archestra.ai/mcp-catalog/inkbytefo__screenmonitormcp)
 A powerful Model Context Protocol (MCP) server that gives AI real-time vision capabilities and enhanced UI intelligence. Transform your AI assistant into a visual powerhouse that can see, analyze, and interact with your screen content.
 
 ## What is ScreenMonitorMCP?
